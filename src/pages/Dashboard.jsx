@@ -247,8 +247,11 @@ export default function Dashboard({
   onRecoveryDiscard,
   onRecoverySaveAndStart,
   systemAudioOn    = false,
-  onCaptureSystemAudio,
+  sysAudioLoading  = false,
+  sysAudioError    = '',
+  onClearSysAudioError,
   onStopSystemAudio,
+  onEnableSystemAudio,
   onNavigateToProject,
   onNavigateToDashboard,
   onCreateProject,
@@ -367,21 +370,73 @@ export default function Dashboard({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* System audio capture — Google Meet / Zoom multi-speaker */}
-              <button
-                onClick={systemAudioOn ? onStopSystemAudio : onCaptureSystemAudio}
-                title={systemAudioOn ? 'Stop capturing meeting audio' : 'Capture meeting audio (Google Meet, Zoom…)'}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer border"
-                style={systemAudioOn
-                  ? { backgroundColor: '#7133AE12', borderColor: '#7133AE40', color: '#7133AE' }
-                  : { backgroundColor: '#f9fafb',   borderColor: '#e5e7eb',   color: '#6b7280'  }
-                }
-              >
-                {systemAudioOn
-                  ? <><MonitorSpeaker size={11} />Meeting audio ON</>
-                  : <><MonitorSpeaker size={11} />Add meeting audio</>
-                }
-              </button>
+              {/* ── System Audio toggle ── */}
+              <div className="relative">
+                <button
+                  onClick={systemAudioOn ? onStopSystemAudio : onEnableSystemAudio}
+                  disabled={sysAudioLoading}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all"
+                  style={{
+                    backgroundColor: systemAudioOn  ? '#05966910'
+                                   : sysAudioLoading ? '#fef9c310'
+                                   : '#f9fafb',
+                    borderColor:     systemAudioOn  ? '#05966940'
+                                   : sysAudioLoading ? '#fbbf2440'
+                                   : '#e5e7eb',
+                    color:           systemAudioOn  ? '#059669'
+                                   : sysAudioLoading ? '#d97706'
+                                   : '#6b7280',
+                    cursor: sysAudioLoading ? 'wait' : 'pointer',
+                  }}
+                  title={
+                    sysAudioLoading ? 'Connecting to meeting audio…'
+                    : systemAudioOn ? 'Meeting audio ON — click to turn off'
+                    : 'Click to capture Google Meet / Zoom audio'
+                  }
+                >
+                  {sysAudioLoading ? (
+                    /* spinner */
+                    <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                  ) : (
+                    <MonitorSpeaker size={12} />
+                  )}
+                  <span>
+                    {sysAudioLoading ? 'Connecting…' : 'System Audio'}
+                  </span>
+                  {/* pill toggle — hidden while loading */}
+                  {!sysAudioLoading && (
+                    <div
+                      className="relative w-8 h-4 rounded-full transition-colors duration-200 flex-shrink-0"
+                      style={{ backgroundColor: systemAudioOn ? '#059669' : '#d1d5db' }}
+                    >
+                      <div
+                        className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-200"
+                        style={{ left: systemAudioOn ? '17px' : '2px' }}
+                      />
+                    </div>
+                  )}
+                </button>
+
+                {/* Error tooltip — shown below toggle */}
+                {sysAudioError && (
+                  <div className="absolute top-8 right-0 z-50 w-72 bg-white rounded-xl shadow-lg border border-red-100 p-3 text-xs">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <p className="font-semibold text-red-600">⚠️ Could not capture audio</p>
+                      <button onClick={onClearSysAudioError} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0">✕</button>
+                    </div>
+                    <p className="text-gray-500 leading-relaxed mb-2">{sysAudioError}</p>
+                    <div className="bg-gray-50 rounded-lg p-2 space-y-1 text-gray-500">
+                      <p className="font-medium text-gray-600">In the sharing dialog:</p>
+                      <p>1. Click <strong>Chrome Tab</strong></p>
+                      <p>2. Select your <strong>Google Meet / Zoom</strong> tab</p>
+                      <p>3. Check <strong>"Share tab audio" ✅</strong></p>
+                      <p>4. Click <strong>Share</strong></p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300"
@@ -409,11 +464,12 @@ export default function Dashboard({
                 <p className="text-gray-400 text-sm">
                   {systemAudioOn ? 'Listening to you + meeting audio…' : 'Listening for speech…'}
                 </p>
-                {systemAudioOn && (
-                  <p className="text-xs text-purple-500 flex items-center gap-1.5">
-                    <Users size={11} /> Multi-speaker detection active
-                  </p>
-                )}
+                <p className="text-xs flex items-center gap-1.5" style={{ color: systemAudioOn ? '#059669' : '#9ca3af' }}>
+                  <MonitorSpeaker size={11} />
+                  {systemAudioOn
+                    ? 'System audio ON — other speakers will be transcribed'
+                    : 'System audio OFF — toggle above to capture other speakers'}
+                </p>
                 <div className="flex gap-1 mt-1">
                   {[0, 0.2, 0.4].map((d, i) => (
                     <span key={i} className="w-1.5 h-1.5 rounded-full bg-gray-300"

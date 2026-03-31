@@ -14,6 +14,22 @@
     /* Page → Extension */
     window.addEventListener('message', (e) => {
       if (e.source !== window || !e.data?.mbNotetaker) return
+
+      /* Special: meeting audio capture — needs a response back to the page */
+      if (e.data.type === 'REQUEST_MEETING_AUDIO') {
+        chrome.runtime.sendMessage({ type: 'CAPTURE_MEETING_AUDIO' }, (response) => {
+          window.postMessage({
+            mbNotetakerResponse: true,
+            type:         'MEETING_AUDIO_STREAM_ID',
+            streamId:     response?.streamId     ?? null,
+            meetTabTitle: response?.meetTabTitle ?? null,
+            error:        response?.error        ?? null,
+          }, '*')
+        })
+        return
+      }
+
+      /* All other messages (recording state events) — fire-and-forget */
       chrome.runtime.sendMessage({ type: e.data.type }).catch(() => {})
     })
 
