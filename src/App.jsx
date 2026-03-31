@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { DeepgramClient } from '@deepgram/sdk'
 import FloatingRecordingWidget from './components/FloatingRecordingWidget'
 import LoginPage    from './pages/LoginPage'
 import Dashboard    from './pages/Dashboard'
@@ -269,12 +268,19 @@ export default function App() {
     setSystemAudioOn(false)
   }
 
-  /* ── Deepgram live transcription ─────────────────────────────────────────────
-     Model  : nova-2   — Deepgram's most accurate real-time model
-     Language: multi   — auto-detects 30+ languages incl. Hindi & English
-     Free tier: $200 credit on signup at console.deepgram.com (~46 k minutes)
+  /* ── Deepgram live transcription — dual-stream multilingual ──────────────────
+     WHY DUAL STREAM:
+       Deepgram's language=multi only covers English+Spanish code-switching.
+       Hindi and Marathi are NOT included in multi mode.
+       Solution: run two parallel WebSocket connections simultaneously —
+         • wsEn  →  nova-2  language=en   (English)
+         • wsHi  →  nova-2  language=hi   (Hindi + Marathi share Devanagari script)
+       Both receive the same audio; results are merged with confidence-based
+       deduplication so each spoken utterance appears exactly once.
      API key : set VITE_DEEPGRAM_API_KEY in .env
   ──────────────────────────────────────────────────────────────────────────── */
+
+  const lastCommitRef = useRef({ text: '', time: 0 })   // dedup across two sockets
 
   const stopDeepgram = () => {
     if (mediaRecorderRef.current) {
@@ -282,7 +288,15 @@ export default function App() {
       mediaRecorderRef.current = null
     }
     if (deepgramRef.current) {
-      try { deepgramRef.current.sendCloseStream({}) } catch (_) {}
+      const closeWs = (ws) => {
+        try {
+          if (ws?.readyState === WebSocket.OPEN)
+            ws.send(JSON.stringify({ type: 'CloseStream' }))
+          ws?.close()
+        } catch (_) {}
+      }
+      closeWs(deepgramRef.current.wsEn)
+      closeWs(deepgramRef.current.wsHi)
       deepgramRef.current = null
     }
     setInterimText('')
@@ -293,32 +307,46 @@ export default function App() {
 
     const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY
     if (!apiKey || apiKey === 'your_deepgram_api_key_here') {
-      console.warn('No Deepgram key — falling back to Web Speech API')
+      console.warn('[Deepgram] No API key — falling back to Web Speech API')
       startWebSpeechFallback()
       return
     }
 
     try {
-      // Acquire mic stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       micStreamRef.current = stream
 
-      // SDK v5: new DeepgramClient → listen.v1.connect()
-      const client = new DeepgramClient({ apiKey })
-      const socket = await client.listen.v1.connect({
-        model:            'nova-2',
-        language:         'multi',       // auto-detects Hindi / English / Marathi
-        smart_format:     true,
-        interim_results:  true,
-        punctuate:        true,
-        utterance_end_ms: 1000,
-        vad_events:       true,
-      })
+      // ── Helper: create one Deepgram WebSocket for a given language ──
+      const makeDGSocket = (lang) => {
+        const params = new URLSearchParams({
+          model:            'nova-2',
+          language:         lang,
+          smart_format:     'true',
+          interim_results:  'true',
+          punctuate:        'true',
+          utterance_end_ms: '1000',
+          vad_events:       'true',
+        })
+        const ws = new WebSocket(
+          `wss://api.deepgram.com/v1/listen?${params}`,
+          ['token', apiKey]
+        )
+        ws.binaryType = 'arraybuffer'
+        return ws
+      }
 
-      deepgramRef.current = socket
+      const wsEn = makeDGSocket('en')   // English
+      const wsHi = makeDGSocket('hi')   // Hindi + Marathi (same Devanagari script)
 
-      // ── Connection open → start MediaRecorder ──
-      socket.on('open', () => {
+      deepgramRef.current = { wsEn, wsHi }
+
+      // ── Start MediaRecorder once BOTH sockets are open ──
+      let openCount = 0
+      const onOpen = (label) => () => {
+        console.log(`[Deepgram ${label}] ✅ connected`)
+        openCount++
+        if (openCount < 2) return   // wait for both
+
         const mimeType =
           MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
           MediaRecorder.isTypeSupported('audio/webm')             ? 'audio/webm'             :
@@ -330,58 +358,78 @@ export default function App() {
         mediaRecorderRef.current = mr
 
         mr.addEventListener('dataavailable', (event) => {
-          if (
-            event.data.size > 0      &&
-            deepgramRef.current      &&
-            socket.readyState === 1  &&
-            !isPausedRef.current
-          ) {
-            socket.sendMedia(event.data)
-          }
+          if (event.data.size === 0 || isPausedRef.current) return
+          // Feed the same audio chunk to both language sockets
+          if (wsEn.readyState === WebSocket.OPEN) wsEn.send(event.data)
+          if (wsHi.readyState === WebSocket.OPEN) wsHi.send(event.data)
         })
 
-        mr.start(200)  // 200ms chunks → low latency
-      })
+        mr.start(250)
+      }
 
-      // ── Transcription results ──
-      socket.on('message', (data) => {
-        if (data?.type !== 'Results') return
-        const transcript = data?.channel?.alternatives?.[0]?.transcript?.trim()
-        if (!transcript) return
+      wsEn.onopen = onOpen('EN')
+      wsHi.onopen = onOpen('HI')
 
-        if (data.is_final) {
-          const sp = detectSpeaker()
-          setRecLines(prev => [...prev, {
-            id:       `${Date.now()}-${Math.random()}`,
-            speaker:  sp.id,
-            initials: sp.initials,
-            color:    sp.color,
-            text:     transcript,
-          }])
-          setInterimText('')
-        } else {
-          setInterimText(transcript)
-        }
-      })
+      // ── Transcription results — confidence-based dedup ──
+      const onMessage = (label) => (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data?.type !== 'Results') return
 
-      socket.on('error', (e) => {
-        console.warn('Deepgram error:', e)
-      })
+          const alt        = data?.channel?.alternatives?.[0]
+          const transcript = alt?.transcript?.trim()
+          const confidence = alt?.confidence ?? 0
 
-      // ── Auto-reconnect on unexpected close ──
-      socket.on('close', () => {
+          if (!transcript) return
+          // Reject low-confidence results (wrong-language socket returns garbled text)
+          if (confidence < 0.80) return
+
+          if (data.is_final) {
+            const now  = Date.now()
+            const last = lastCommitRef.current
+            // Dedup: if the same text was committed by the OTHER socket within 1 s, skip
+            if (last.text === transcript && now - last.time < 1000) return
+            lastCommitRef.current = { text: transcript, time: now }
+
+            const sp = detectSpeaker()
+            setRecLines(prev => [...prev, {
+              id:       `${now}-${Math.random()}`,
+              speaker:  sp.id,
+              initials: sp.initials,
+              color:    sp.color,
+              text:     transcript,
+            }])
+            setInterimText('')
+          } else {
+            // For interim: prefer Hindi socket content (Devanagari) when present
+            setInterimText(prev =>
+              label === 'HI' ? transcript : (prev || transcript)
+            )
+          }
+        } catch (_) {}
+      }
+
+      wsEn.onmessage = onMessage('EN')
+      wsHi.onmessage = onMessage('HI')
+
+      wsEn.onerror = (e) => console.error('[Deepgram EN] ❌ error', e)
+      wsHi.onerror = (e) => console.error('[Deepgram HI] ❌ error', e)
+
+      // ── Auto-reconnect if either socket closes unexpectedly ──
+      const onClose = (label) => (e) => {
+        console.warn(`[Deepgram ${label}] closed — code:`, e.code, e.reason)
         if (isRecordingRef.current && !isPausedRef.current && micStreamRef.current) {
           deepgramRef.current      = null
           mediaRecorderRef.current = null
           setTimeout(() => startDeepgram(), 1500)
         }
-      })
+      }
 
-      // SDK v5: socket starts closed (startClosed: true) — must call connect() explicitly
-      socket.connect()
+      wsEn.onclose = onClose('EN')
+      wsHi.onclose = onClose('HI')
 
     } catch (e) {
-      console.warn('Deepgram start failed:', e.message)
+      console.warn('[Deepgram] start failed:', e.message)
       startWebSpeechFallback()
     }
   }

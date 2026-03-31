@@ -357,7 +357,7 @@ export default function Dashboard({
               <span className="text-gray-900 font-semibold text-base">Live Transcription</span>
               {DEEPGRAM_KEY_SET ? (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: '#7133AE12', color: '#7133AE' }}>
-                  nova-2 · multi-lang
+                  nova-2 · EN / HI / MR
                 </span>
               ) : (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
