@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Dev Server (Vite)",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "npm", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "Preview Server (Vite)",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "npm", "run", "preview"],
+      "port": 4173
+    }
+  ]
+}

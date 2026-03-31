@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "MB Notetaker Widget",
+  "version": "1.0.0",
+  "description": "Floating recording widget — visible on any tab while recording",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end",
+      "all_frames": false
+    }
+  ]
+}
