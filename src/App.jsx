@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { createRoot } from 'react-dom/client'
 import { DeepgramClient } from '@deepgram/sdk'
+import FloatingRecordingWidget from './components/FloatingRecordingWidget'
 import LoginPage    from './pages/LoginPage'
 import Dashboard    from './pages/Dashboard'
 import ProjectPage  from './pages/ProjectPage'
@@ -114,94 +114,6 @@ function generateSummaryFromTranscript(lines) {
   return { topicsDiscussed: finalTopics, decisions, actionItems, keyHighlights }
 }
 
-/* ─────────────────────────────────────────────
-   PIP WINDOW CONTENT
-   Identical look to FloatingRecordingWidget pill.
-   All inline styles — no Tailwind needed.
-───────────────────────────────────────────── */
-/* ─── Shared icon button style — mirrors FloatingRecordingWidget exactly ─── */
-const _pipIBtn = (variant = 'default') => ({
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  width: 30, height: 30, borderRadius: 8, border: 'none',
-  cursor: 'pointer', flexShrink: 0,
-  background: variant === 'red'    ? 'rgba(220,38,38,0.25)'
-            : variant === 'subtle' ? 'rgba(255,255,255,0.06)'
-            :                        'rgba(255,255,255,0.08)',
-  color:      variant === 'red'    ? '#fca5a5'
-            : variant === 'subtle' ? 'rgba(255,255,255,0.45)'
-            :                        'rgba(255,255,255,0.8)',
-})
-
-/* PipWindowContent — pixel-perfect copy of FloatingRecordingWidget pill (no drag handle) */
-function PipWindowContent({ seconds, isPaused, onPause, onResume, onStop, onReturn }) {
-  return (
-    /* Outer wrapper = full window, centers the pill */
-    <div style={{
-      width: '100%', height: '100%',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#0f0a1a',
-      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      userSelect: 'none', boxSizing: 'border-box',
-    }}>
-      {/* Pill — exact match to widget inner div */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        background: 'linear-gradient(135deg, #1E1130 0%, #150C26 100%)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 14,
-        padding: '6px 10px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-        outline: isPaused ? 'none' : '1px solid rgba(220,38,38,0.4)',
-        outlineOffset: -1,
-      }}>
-
-        {/* Recording dot */}
-        <span style={{
-          display: 'block', width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-          backgroundColor: isPaused ? 'rgba(255,255,255,0.25)' : '#EF4444',
-          boxShadow: isPaused ? 'none' : '0 0 6px #EF4444',
-        }} />
-
-        {/* Divider */}
-        <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
-
-        {/* Timer */}
-        <span style={{
-          fontSize: 15, fontWeight: 700, letterSpacing: '0.06em',
-          fontVariantNumeric: 'tabular-nums', color: '#fff',
-          minWidth: 46, textAlign: 'center', flexShrink: 0,
-        }}>
-          {fmt(seconds)}
-        </span>
-
-        {/* Divider */}
-        <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
-
-        {/* Pause / Resume */}
-        <button style={_pipIBtn()} onClick={isPaused ? onResume : onPause} title={isPaused ? 'Resume' : 'Pause'}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.16)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}>
-          {isPaused ? '▶' : '⏸'}
-        </button>
-
-        {/* Stop */}
-        <button style={_pipIBtn('red')} onClick={onStop} title="Stop recording"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(220,38,38,0.45)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(220,38,38,0.25)' }}>
-          ■
-        </button>
-
-        {/* Return to recording */}
-        <button style={_pipIBtn('subtle')} onClick={onReturn} title="Return to recording"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.13)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)' }}>
-          ↗
-        </button>
-
-      </div>
-    </div>
-  )
-}
 
 /* ─────────────────────────────────────────────
    APP
@@ -224,11 +136,6 @@ export default function App() {
   const [savedFlash,  setSavedFlash]  = useState(false)
   const [recoveryData,setRecoveryData]= useState(null)
 
-  /* ── Document Picture-in-Picture ── */
-  const [pipOpen,    setPipOpen]    = useState(false)
-  const pipWindowRef = useRef(null)
-  const pipRootRef   = useRef(null)
-  const actionsRef   = useRef({})
 
   /* ── Deepgram live transcription refs ── */
   const deepgramRef      = useRef(null)   // V1Socket (live connection)
@@ -370,14 +277,12 @@ export default function App() {
   ──────────────────────────────────────────────────────────────────────────── */
 
   const stopDeepgram = () => {
-    // Stop MediaRecorder first to flush remaining audio
     if (mediaRecorderRef.current) {
       try { mediaRecorderRef.current.stop() } catch (_) {}
       mediaRecorderRef.current = null
     }
-    // Close Deepgram WebSocket
     if (deepgramRef.current) {
-      try { deepgramRef.current.close() } catch (_) {}
+      try { deepgramRef.current.sendCloseStream({}) } catch (_) {}
       deepgramRef.current = null
     }
     setInterimText('')
@@ -388,7 +293,7 @@ export default function App() {
 
     const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY
     if (!apiKey || apiKey === 'your_deepgram_api_key_here') {
-      console.warn('Deepgram: set VITE_DEEPGRAM_API_KEY in .env — falling back to Web Speech API')
+      console.warn('No Deepgram key — falling back to Web Speech API')
       startWebSpeechFallback()
       return
     }
@@ -398,13 +303,13 @@ export default function App() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       micStreamRef.current = stream
 
-      // Create Deepgram client and open live WebSocket
-      const client     = new DeepgramClient({ apiKey })
-      const socket     = await client.listen.v1.connect({
+      // SDK v5: new DeepgramClient → listen.v1.connect()
+      const client = new DeepgramClient({ apiKey })
+      const socket = await client.listen.v1.connect({
         model:            'nova-2',
-        language:         'multi',      // auto-detect 30+ languages including Hindi
-        smart_format:     true,         // auto-punctuation + formatting
-        interim_results:  true,         // live typing words
+        language:         'multi',       // auto-detects Hindi / English / Marathi
+        smart_format:     true,
+        interim_results:  true,
         punctuate:        true,
         utterance_end_ms: 1000,
         vad_events:       true,
@@ -412,32 +317,34 @@ export default function App() {
 
       deepgramRef.current = socket
 
+      // ── Connection open → start MediaRecorder ──
       socket.on('open', () => {
-        // Pick best MIME type supported by this browser
         const mimeType =
           MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
           MediaRecorder.isTypeSupported('audio/webm')             ? 'audio/webm'             :
           MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')  ? 'audio/ogg;codecs=opus'  : ''
 
-        const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+        const mr = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream)
         mediaRecorderRef.current = mr
 
         mr.addEventListener('dataavailable', (event) => {
           if (
-            event.data.size > 0         &&
-            deepgramRef.current         &&
-            deepgramRef.current.readyState === 1 &&
+            event.data.size > 0      &&
+            deepgramRef.current      &&
+            socket.readyState === 1  &&
             !isPausedRef.current
           ) {
-            deepgramRef.current.sendMedia(event.data)
+            socket.sendMedia(event.data)
           }
         })
 
-        mr.start(250)   // send 250 ms chunks → ~250 ms latency
+        mr.start(200)  // 200ms chunks → low latency
       })
 
+      // ── Transcription results ──
       socket.on('message', (data) => {
-        // Deepgram sends various message types; only 'Results' has transcripts
         if (data?.type !== 'Results') return
         const transcript = data?.channel?.alternatives?.[0]?.transcript?.trim()
         if (!transcript) return
@@ -461,17 +368,21 @@ export default function App() {
         console.warn('Deepgram error:', e)
       })
 
+      // ── Auto-reconnect on unexpected close ──
       socket.on('close', () => {
-        // Auto-reconnect if recording is still active (connection dropped)
         if (isRecordingRef.current && !isPausedRef.current && micStreamRef.current) {
-          deepgramRef.current    = null
+          deepgramRef.current      = null
           mediaRecorderRef.current = null
           setTimeout(() => startDeepgram(), 1500)
         }
       })
 
+      // SDK v5: socket starts closed (startClosed: true) — must call connect() explicitly
+      socket.connect()
+
     } catch (e) {
       console.warn('Deepgram start failed:', e.message)
+      startWebSpeechFallback()
     }
   }
 
@@ -556,9 +467,6 @@ export default function App() {
     currentSpeaker.current = 0
     setIsRecording(false); setIsPaused(false)
     setRecSeconds(0); setRecLines([]); setRecProject(null); setInterimText('')
-    // Close PiP inline (closePip defined later, avoid hoisting issue)
-    if (pipWindowRef.current && !pipWindowRef.current.closed) pipWindowRef.current.close()
-    pipWindowRef.current = null; pipRootRef.current = null; setPipOpen(false)
   }
 
   const handleEndRecording = () => {
@@ -569,101 +477,6 @@ export default function App() {
     navToProject(pid)
   }
 
-  /* ── Document PiP — keep actionsRef current so PiP callbacks don't go stale ── */
-  actionsRef.current = { handleEndRecording, navToDashboard, setIsPaused, recProject, recSeconds, isPaused }
-
-  const syncPipContent = () => {
-    if (!pipRootRef.current || !pipWindowRef.current || pipWindowRef.current.closed) return
-    const { handleEndRecording: onStop, navToDashboard: onReturn, setIsPaused: setSP, recProject: proj, recSeconds: secs, isPaused: paused } = actionsRef.current
-    pipRootRef.current.render(
-      <PipWindowContent
-        seconds={secs}
-        isPaused={paused}
-        onPause={()  => setSP(true)}
-        onResume={() => setSP(false)}
-        onStop={onStop}
-        onReturn={() => { onReturn(); closePip() }}
-      />
-    )
-  }
-
-  /* Sync PiP whenever recording state changes */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { syncPipContent() }, [recSeconds, isPaused, recProject, pipOpen])
-
-  const closePip = () => {
-    if (pipWindowRef.current && !pipWindowRef.current.closed) {
-      pipWindowRef.current.close()
-    }
-    pipWindowRef.current = null
-    pipRootRef.current   = null
-    setPipOpen(false)
-  }
-
-  /* Opens a Document PiP window — must be triggered from a user gesture */
-  const openDocumentPip = async () => {
-    if (!('documentPictureInPicture' in window)) return  // silently skip unsupported browsers
-    if (pipWindowRef.current && !pipWindowRef.current.closed) return  // already open
-
-    try {
-      const pipWin = await window.documentPictureInPicture.requestWindow({
-        width: 250, height: 56,   // pill: 6+30+6=42px + outer wrapper padding = 56px
-        disallowReturnToOpener: false,
-      })
-      pipWindowRef.current = pipWin
-
-      /* Hard reset — zero margin/padding everywhere */
-      const style = pipWin.document.createElement('style')
-      style.textContent = `*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } body { overflow: hidden; background: #150C26; }`
-      pipWin.document.head.appendChild(style)
-
-      pipWin.document.title = 'MB Notetaker'
-
-      const container = pipWin.document.createElement('div')
-      pipWin.document.body.appendChild(container)
-      pipRootRef.current = createRoot(container)
-
-      setPipOpen(true)
-      syncPipContent()
-
-      /* Handle user manually closing the PiP window */
-      pipWin.addEventListener('pagehide', () => {
-        pipWindowRef.current = null
-        pipRootRef.current   = null
-        setPipOpen(false)
-      })
-    } catch (e) {
-      console.warn('PiP open failed:', e.message)
-    }
-  }
-
-  /* ── PiP: open when recording and user leaves dashboard (in-app navigation)
-     The sidebar click IS the user activation. useEffect runs within same task
-     — well within Chrome's 5 second transient activation window. ── */
-  useEffect(() => {
-    if (!isRecording) return
-    if (page !== 'dashboard') {
-      openDocumentPip()   // user navigated away from recording screen
-    } else {
-      closePip()          // user returned to recording screen
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page])
-
-  /* ── PiP: open when user switches browser tab / window while recording ── */
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (!isRecordingRef.current) return
-      if (document.hidden) {
-        openDocumentPip()                               // left the tab → show PiP
-      } else {
-        if (page === 'dashboard') closePip()            // returned to tab on recording screen → hide PiP
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page])
 
   /* ── Chrome Extension bridge: notify extension when recording state changes ── */
   const extBridgeInitRef = useRef(false)
@@ -840,7 +653,17 @@ export default function App() {
         />
       )}
 
-      {/* FloatingRecordingWidget removed — PiP overlay handles this */}
+      {/* Floating widget — shown when recording and user navigates away from dashboard */}
+      {isRecording && page !== 'dashboard' && (
+        <FloatingRecordingWidget
+          seconds={recSeconds}
+          isPaused={isPaused}
+          onPause={() => setIsPaused(true)}
+          onResume={() => setIsPaused(false)}
+          onStop={handleEndRecording}
+          onReturn={navToDashboard}
+        />
+      )}
     </>
   )
 }

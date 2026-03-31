@@ -18,7 +18,25 @@
       "Bash(powershell -Command \"Set-Location ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker''; npm install ''@deepgram/sdk''; Write-Host ''DONE''\")",
       "Bash(powershell -Command \"cd ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker''; $result = npm install ''@deepgram/sdk'' 2>&1; $result; Write-Host ''Exit:'' $LASTEXITCODE\")",
       "Bash(powershell -Command \"Test-Path ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\node_modules''; Test-Path ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\node_modules\\\\@deepgram''\")",
-      "Bash(dir \"C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\extension\")"
+      "Bash(dir \"C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\extension\")",
+      "Bash(npm run:*)",
+      "Bash(npx vite:*)",
+      "Bash(node -e \"const m = require\\(''./node_modules/@deepgram/sdk/package.json''\\); console.log\\(''Deepgram SDK:'', m.version\\)\")",
+      "Bash(timeout /t 8)",
+      "Bash(node -e \"require\\(''./node_modules/@deepgram/sdk/dist/cjs/index.js''\\)\")",
+      "Bash(node -e \"const { DeepgramClient } = require\\(''./node_modules/@deepgram/sdk/dist/cjs/index.js''\\); const c = new DeepgramClient\\({ apiKey: ''test'' }\\); console.log\\(''DeepgramClient OK, listen:'', typeof c.listen\\); const s = c.listen.v1; console.log\\(''listen.v1:'', typeof s\\); console.log\\(''connect:'', typeof s.connect\\);\")",
+      "Bash(node --input-type=module --eval \"import { DeepgramClient } from ''@deepgram/sdk''; const c = new DeepgramClient\\({ apiKey: ''test'' }\\); console.log\\(''OK listen type:'', typeof c.listen\\); const s = c.listen.v\\(''1''\\); console.log\\(''v1 type:'', typeof s, typeof s.connect\\);\")",
+      "Bash(node -e \"try { const m = require\\(''./node_modules/@deepgram/sdk/dist/cjs/index.js''\\); console.log\\(''exports:'', Object.keys\\(m\\).slice\\(0, 20\\)\\); } catch\\(e\\) { console.error\\(e.message\\); }\")",
+      "Bash(node -e \"const m = require\\(''./node_modules/@deepgram/sdk/dist/cjs/index.js''\\); console.log\\(Object.keys\\(m\\).join\\('',''\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''version:'''', d.get\\(''''version''''\\)\\); print\\(''''main:'''', d.get\\(''''main''''\\)\\); print\\(''''module:'''', d.get\\(''''module''''\\)\\)\")",
+      "Bash(findstr /i \"version main module exports\")",
+      "Bash(timeout /t 4 /nobreak)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":5173 \\\\|:5174 \")",
+      "Bash(findstr LISTENING)",
+      "Bash(start /B npm run dev)",
+      "Bash(timeout /t 6 /nobreak)",
+      "Bash(findstr \":5173\")"
     ]
   }
 }
