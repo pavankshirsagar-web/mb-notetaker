@@ -5,6 +5,7 @@ import LoginPage    from './pages/LoginPage'
 import Dashboard    from './pages/Dashboard'
 import ProjectPage  from './pages/ProjectPage'
 import MeetingDetail from './pages/MeetingDetail'
+import { auth, onAuthStateChanged, signOutUser } from './lib/firebase'
 
 /* ─── Constants ─── */
 const AUTOSAVE_KEY = 'mb_notetaker_autosave'
@@ -171,6 +172,10 @@ function generateSummaryFromTranscript(lines) {
    APP
 ───────────────────────────────────────────── */
 export default function App() {
+  /* ── Auth ── */
+  const [currentUser,   setCurrentUser]   = useState(null)   // Firebase User object
+  const [authChecked,   setAuthChecked]   = useState(false)  // true once onAuthStateChanged fires
+
   /* ── Page / navigation ── */
   const [page,            setPage]            = useState('login')
   const [projects,        setProjects]        = useState(INITIAL_PROJECTS)
@@ -247,6 +252,20 @@ export default function App() {
       setMicDevices(all.filter(d => d.kind === 'audioinput'))
     } catch { /* silently ignore */ }
   }
+
+  /* ── Firebase auth state ────────────────────────────────────────────────────
+     onAuthStateChanged fires once immediately with the cached user (or null),
+     then again whenever login / logout happens.
+     This is the single source of truth for whether the user is authenticated.
+  ────────────────────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user)
+      setAuthChecked(true)
+      setPage(user ? 'dashboard' : 'login')
+    })
+    return unsubscribe
+  }, [])
 
   /* ── On mount: detect interrupted session + do initial device enum ── */
   useEffect(() => {
@@ -1052,9 +1071,12 @@ export default function App() {
   const projectMeetings = meetings.filter(m => m.projectId === activeProjectId)
 
 
+  /* ── While Firebase checks the cached session — show nothing (avoids flash) ── */
+  if (!authChecked) return null
+
   return (
     <>
-      {page === 'login' && <LoginPage onLogin={navToDashboard} />}
+      {page === 'login' && <LoginPage />}
 
       {page === 'dashboard' && (
         <Dashboard
@@ -1089,6 +1111,8 @@ export default function App() {
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
+          currentUser={currentUser}
+          onSignOut={signOutUser}
         />
       )}
 
@@ -1104,6 +1128,8 @@ export default function App() {
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
+          currentUser={currentUser}
+          onSignOut={signOutUser}
         />
       )}
 
@@ -1119,6 +1145,8 @@ export default function App() {
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
+          currentUser={currentUser}
+          onSignOut={signOutUser}
         />
       )}
 

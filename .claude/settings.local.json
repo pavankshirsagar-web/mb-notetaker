@@ -37,7 +37,11 @@
       "Bash(start /B npm run dev)",
       "Bash(timeout /t 6 /nobreak)",
       "Bash(findstr \":5173\")",
-      "Bash(powershell -Command \"Select-String -Path ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\src\\\\App.jsx'' -Pattern ''navToProject|navToDashboard|navToMeeting|closePiP|openPiP|setPage'' | Select-Object LineNumber, Line\")"
+      "Bash(powershell -Command \"Select-String -Path ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\src\\\\App.jsx'' -Pattern ''navToProject|navToDashboard|navToMeeting|closePiP|openPiP|setPage'' | Select-Object LineNumber, Line\")",
+      "Bash(dir \"C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\node_modules\\\\firebase\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker && npm install firebase\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker && npm list firebase 2>&1\")",
+      "Bash(cmd /c \"mkdir C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\src\\\\lib\")"
     ]
   }
 }

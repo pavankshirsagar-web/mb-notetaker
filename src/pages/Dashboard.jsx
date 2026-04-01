@@ -379,6 +379,8 @@ export default function Dashboard({
   onCreateProject,
   onRenameProject,
   onDeleteProject,
+  currentUser = null,
+  onSignOut,
 }) {
   const [showModal,    setShowModal]    = useState(false)
   const [isCtaPressed, setIsCtaPressed] = useState(false)
@@ -402,6 +404,8 @@ export default function Dashboard({
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}
+        currentUser={currentUser}
+        onSignOut={onSignOut}
       />
 
       <main className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
@@ -471,6 +475,8 @@ export default function Dashboard({
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}
+        currentUser={currentUser}
+        onSignOut={onSignOut}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">

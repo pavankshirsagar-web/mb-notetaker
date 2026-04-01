@@ -45,6 +45,8 @@ export default function ProjectPage({
   onCreateProject,
   onRenameProject,
   onDeleteProject,
+  currentUser = null,
+  onSignOut,
 }) {
   if (!project) return null
 
@@ -66,6 +68,8 @@ export default function ProjectPage({
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}
+        currentUser={currentUser}
+        onSignOut={onSignOut}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">

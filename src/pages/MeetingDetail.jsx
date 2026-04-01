@@ -172,6 +172,8 @@ export default function MeetingDetail({
   onCreateProject,
   onRenameProject,
   onDeleteProject,
+  currentUser = null,
+  onSignOut,
 }) {
   const [title,        setTitle]        = useState(meeting?.title ?? '')
   const [editingTitle, setEditingTitle] = useState(false)
@@ -311,6 +313,8 @@ export default function MeetingDetail({
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}
+        currentUser={currentUser}
+        onSignOut={onSignOut}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
