@@ -3,7 +3,7 @@
   "name": "MB Notetaker Widget",
   "version": "1.0.0",
   "description": "Floating recording widget — visible on any tab while recording",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "tabCapture"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

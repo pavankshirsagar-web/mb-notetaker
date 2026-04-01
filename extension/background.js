@@ -94,6 +94,49 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         })
       }
       break
+
+    /* ── Capture meeting tab audio via tabCapture (no screen-share dialog) ── */
+    case 'CAPTURE_MEETING_AUDIO': {
+      const appTabId = tabId   // the MB Notetaker tab that sent the message
+
+      const MEETING_HOSTS = [
+        'meet.google.com',
+        'zoom.us',
+        'teams.microsoft.com',
+        'teams.live.com',
+        'webex.com',
+        'whereby.com',
+        'bluejeans.com',
+        'gotomeeting.com',
+        'meet.jit.si',
+      ]
+
+      chrome.tabs.query({}, (tabs) => {
+        // Find first open tab whose URL matches a known meeting platform
+        const meetTab = tabs.find(t =>
+          t.id !== appTabId &&
+          MEETING_HOSTS.some(host => t.url?.includes(host))
+        )
+
+        if (!meetTab) {
+          sendResponse({ error: 'no_meeting_tab' })
+          return
+        }
+
+        chrome.tabCapture.getMediaStreamId(
+          { targetTabId: meetTab.id, consumerTabId: appTabId },
+          (streamId) => {
+            if (chrome.runtime.lastError || !streamId) {
+              sendResponse({ error: chrome.runtime.lastError?.message ?? 'getMediaStreamId failed' })
+            } else {
+              sendResponse({ streamId, meetTabTitle: meetTab.title ?? '' })
+            }
+          }
+        )
+      })
+
+      return true   // keep message channel open for async sendResponse
+    }
   }
 
   sendResponse({})

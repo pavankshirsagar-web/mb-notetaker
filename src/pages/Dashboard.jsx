@@ -1,6 +1,124 @@
 import { useEffect, useRef, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { Folder, X, Mic, Pause, Play, Square, Search, RefreshCw, ShieldCheck, MonitorSpeaker, MonitorX, Users } from 'lucide-react'
+import { Folder, X, Mic, Pause, Play, Square, Search, RefreshCw, ShieldCheck, MonitorSpeaker, ChevronDown, Check } from 'lucide-react'
+
+/* ── Short display name for a mic device ─────────────────────────────────── */
+function micShortLabel(device) {
+  if (!device) return 'Microphone'
+  const l = device.label || 'Microphone'
+  // Strip parenthetical driver info: "Microphone (Realtek Audio)" → "Microphone"
+  const stripped = l.replace(/\s*\([^)]*\)\s*$/, '').trim()
+  // Truncate long names
+  return stripped.length > 22 ? stripped.slice(0, 20) + '…' : stripped || 'Microphone'
+}
+
+/* ── Mic change dropdown ─────────────────────────────────────────────────── */
+function MicSelector({ devices = [], selectedId, onChange, onRefresh }) {
+  const [open,        setOpen]        = useState(false)
+  const [refreshing,  setRefreshing]  = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const selected = devices.find(d => d.deviceId === selectedId) ?? devices[0]
+  // Filter out "Communications" duplicate, keep unique labels
+  const visible = devices.filter(d => d.deviceId !== 'communications')
+
+  const handleRefresh = async (e) => {
+    e.stopPropagation()
+    setRefreshing(true)
+    await onRefresh?.()
+    setTimeout(() => setRefreshing(false), 600)
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all"
+        style={{
+          backgroundColor: open ? '#7133AE10' : '#f9fafb',
+          borderColor: open ? '#7133AE50' : '#e5e7eb',
+          color: open ? '#7133AE' : '#6b7280',
+          cursor: 'pointer',
+        }}
+        title="Change microphone"
+      >
+        <Mic size={11} />
+        <span>{visible.length ? micShortLabel(selected) : 'Microphone'}</span>
+        <ChevronDown size={11} className="transition-transform duration-150" style={{ transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-8 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[240px]"
+          style={{ maxHeight: 280, overflowY: 'auto' }}
+        >
+          {/* Header row */}
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Select Microphone</p>
+            <button
+              onClick={handleRefresh}
+              title="Refresh device list — plug in your headphone then click here"
+              className="p-1 rounded-md transition-colors"
+              style={{ cursor: 'pointer', color: refreshing ? '#7133AE' : '#9ca3af' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+            >
+              <RefreshCw size={11} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          {/* Device list */}
+          {visible.length === 0 ? (
+            <p className="px-3 py-3 text-xs text-gray-400 text-center">
+              No microphones found.<br />
+              <span className="text-gray-500">Plug in your headphone, then click ↻</span>
+            </p>
+          ) : (
+            visible.map(d => {
+              const isSel = d.deviceId === (selectedId ?? devices[0]?.deviceId)
+              return (
+                <button
+                  key={d.deviceId}
+                  onClick={() => { onChange(d.deviceId); setOpen(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors"
+                  style={{
+                    backgroundColor: isSel ? '#7133AE08' : 'transparent',
+                    color: isSel ? '#7133AE' : '#374151',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.backgroundColor = '#f9fafb' }}
+                  onMouseLeave={(e) => { if (!isSel) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: isSel ? '#7133AE15' : '#f3f4f6' }}>
+                    <Mic size={11} style={{ color: isSel ? '#7133AE' : '#9ca3af' }} />
+                  </div>
+                  <span className="flex-1 font-medium leading-snug" style={{ fontSize: 12 }}>
+                    {d.label || `Microphone ${visible.indexOf(d) + 1}`}
+                  </span>
+                  {isSel && <Check size={13} style={{ color: '#7133AE', flexShrink: 0 }} />}
+                </button>
+              )
+            })
+          )}
+
+          {/* Hint footer */}
+          <div className="px-3 py-2 border-t border-gray-100">
+            <p className="text-[10px] text-gray-400 leading-relaxed">
+              Don't see your headphone? Plug it in, then click ↻ to refresh.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 /* ─────────────────────────────────────────────
    HELPERS
@@ -247,8 +365,15 @@ export default function Dashboard({
   onRecoveryDiscard,
   onRecoverySaveAndStart,
   systemAudioOn    = false,
-  onCaptureSystemAudio,
+  sysAudioLoading  = false,
+  sysAudioError    = '',
+  onClearSysAudioError,
   onStopSystemAudio,
+  onEnableSystemAudio,
+  micDevices      = [],
+  selectedMicId   = null,
+  onChangeMic,
+  onRefreshMicDevices,
   onNavigateToProject,
   onNavigateToDashboard,
   onCreateProject,
@@ -357,7 +482,7 @@ export default function Dashboard({
               <span className="text-gray-900 font-semibold text-base">Live Transcription</span>
               {DEEPGRAM_KEY_SET ? (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: '#7133AE12', color: '#7133AE' }}>
-                  nova-2 · multi-lang
+                  nova-2 · EN / HI / MR
                 </span>
               ) : (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
@@ -367,21 +492,81 @@ export default function Dashboard({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* System audio capture — Google Meet / Zoom multi-speaker */}
-              <button
-                onClick={systemAudioOn ? onStopSystemAudio : onCaptureSystemAudio}
-                title={systemAudioOn ? 'Stop capturing meeting audio' : 'Capture meeting audio (Google Meet, Zoom…)'}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer border"
-                style={systemAudioOn
-                  ? { backgroundColor: '#7133AE12', borderColor: '#7133AE40', color: '#7133AE' }
-                  : { backgroundColor: '#f9fafb',   borderColor: '#e5e7eb',   color: '#6b7280'  }
-                }
-              >
-                {systemAudioOn
-                  ? <><MonitorSpeaker size={11} />Meeting audio ON</>
-                  : <><MonitorSpeaker size={11} />Add meeting audio</>
-                }
-              </button>
+              {/* ── Mic selector — always shown so user can refresh/select even if list seems empty ── */}
+              <MicSelector
+                devices={micDevices}
+                selectedId={selectedMicId}
+                onChange={onChangeMic}
+                onRefresh={onRefreshMicDevices}
+              />
+
+              {/* ── System Audio toggle ── */}
+              <div className="relative">
+                <button
+                  onClick={systemAudioOn ? onStopSystemAudio : onEnableSystemAudio}
+                  disabled={sysAudioLoading}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all"
+                  style={{
+                    backgroundColor: systemAudioOn  ? '#05966910'
+                                   : sysAudioLoading ? '#fef9c310'
+                                   : '#f9fafb',
+                    borderColor:     systemAudioOn  ? '#05966940'
+                                   : sysAudioLoading ? '#fbbf2440'
+                                   : '#e5e7eb',
+                    color:           systemAudioOn  ? '#059669'
+                                   : sysAudioLoading ? '#d97706'
+                                   : '#6b7280',
+                    cursor: sysAudioLoading ? 'wait' : 'pointer',
+                  }}
+                  title={
+                    sysAudioLoading ? 'Connecting to meeting audio…'
+                    : systemAudioOn ? 'Meeting audio ON — click to turn off'
+                    : 'Click to capture Google Meet / Zoom audio'
+                  }
+                >
+                  {sysAudioLoading ? (
+                    /* spinner */
+                    <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                  ) : (
+                    <MonitorSpeaker size={12} />
+                  )}
+                  <span>
+                    {sysAudioLoading ? 'Connecting…' : 'System Audio'}
+                  </span>
+                  {/* pill toggle — hidden while loading */}
+                  {!sysAudioLoading && (
+                    <div
+                      className="relative w-8 h-4 rounded-full transition-colors duration-200 flex-shrink-0"
+                      style={{ backgroundColor: systemAudioOn ? '#059669' : '#d1d5db' }}
+                    >
+                      <div
+                        className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-200"
+                        style={{ left: systemAudioOn ? '17px' : '2px' }}
+                      />
+                    </div>
+                  )}
+                </button>
+
+                {/* Error tooltip — shown below toggle */}
+                {sysAudioError && (
+                  <div className="absolute top-8 right-0 z-50 w-72 bg-white rounded-xl shadow-lg border border-red-100 p-3 text-xs">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <p className="font-semibold text-red-600">⚠️ Could not capture audio</p>
+                      <button onClick={onClearSysAudioError} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0">✕</button>
+                    </div>
+                    <p className="text-gray-500 leading-relaxed mb-2">{sysAudioError}</p>
+                    <div className="bg-gray-50 rounded-lg p-2 space-y-1 text-gray-500">
+                      <p className="font-medium text-gray-600">In the sharing dialog:</p>
+                      <p>1. Select <strong>Entire Screen</strong> (first tab)</p>
+                      <p>2. Make sure <strong>"Also share system audio" ✅</strong> is checked</p>
+                      <p>3. Click <strong>Share</strong></p>
+                      <p className="text-gray-400 pt-0.5"><em>Zoom desktop?</em> Use <strong>Window</strong> tab → select Zoom window.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300"
@@ -409,11 +594,12 @@ export default function Dashboard({
                 <p className="text-gray-400 text-sm">
                   {systemAudioOn ? 'Listening to you + meeting audio…' : 'Listening for speech…'}
                 </p>
-                {systemAudioOn && (
-                  <p className="text-xs text-purple-500 flex items-center gap-1.5">
-                    <Users size={11} /> Multi-speaker detection active
-                  </p>
-                )}
+                <p className="text-xs flex items-center gap-1.5" style={{ color: systemAudioOn ? '#059669' : '#9ca3af' }}>
+                  <MonitorSpeaker size={11} />
+                  {systemAudioOn
+                    ? 'System audio ON — other speakers will be transcribed'
+                    : 'System audio OFF — toggle above to capture other speakers'}
+                </p>
                 <div className="flex gap-1 mt-1">
                   {[0, 0.2, 0.4].map((d, i) => (
                     <span key={i} className="w-1.5 h-1.5 rounded-full bg-gray-300"
