@@ -5,7 +5,7 @@ import LoginPage    from './pages/LoginPage'
 import Dashboard    from './pages/Dashboard'
 import ProjectPage  from './pages/ProjectPage'
 import MeetingDetail from './pages/MeetingDetail'
-import { auth, onAuthStateChanged, signOutUser } from './lib/firebase'
+import { listenAuthState, signOutUser, firebaseConfigured } from './lib/firebase'
 
 /* ─── Constants ─── */
 const AUTOSAVE_KEY = 'mb_notetaker_autosave'
@@ -259,7 +259,9 @@ export default function App() {
      This is the single source of truth for whether the user is authenticated.
   ────────────────────────────────────────────────────────────────────────────── */
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    // listenAuthState handles missing Firebase config gracefully:
+    // if env vars are not set it calls back with null immediately → shows login page
+    const unsubscribe = listenAuthState((user) => {
       setCurrentUser(user)
       setAuthChecked(true)
       setPage(user ? 'dashboard' : 'login')
