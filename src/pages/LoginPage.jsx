@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Mail, ArrowRight } from 'lucide-react'
+import { Mail, ArrowRight, Loader2 } from 'lucide-react'
+import { signInWithGoogle } from '../lib/firebase'
 
 const GoogleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -12,24 +13,15 @@ const GoogleIcon = () => (
 
 const IllustrationLeft = () => (
   <svg viewBox="0 0 440 340" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-md">
-    {/* Main card */}
     <rect x="20" y="10" width="400" height="320" rx="18" fill="white" fillOpacity="0.08" />
     <rect x="20" y="10" width="400" height="320" rx="18" stroke="white" strokeOpacity="0.18" strokeWidth="1.5" />
-
-    {/* Top bar — dots */}
     <circle cx="52" cy="42" r="6" fill="white" fillOpacity="0.45" />
     <circle cx="70" cy="42" r="6" fill="white" fillOpacity="0.25" />
     <circle cx="88" cy="42" r="6" fill="white" fillOpacity="0.15" />
-
-    {/* Recording badge */}
     <rect x="330" y="29" width="72" height="26" rx="13" fill="#FF4B4B" fillOpacity="0.92" />
     <circle cx="346" cy="42" r="5" fill="white" />
     <rect x="356" y="38" width="32" height="8" rx="4" fill="white" fillOpacity="0.92" />
-
-    {/* Divider */}
     <rect x="20" y="66" width="400" height="1" fill="white" fillOpacity="0.1" />
-
-    {/* Waveform bars */}
     <rect x="46" y="92" width="14" height="22" rx="4" fill="white" fillOpacity="0.3" />
     <rect x="66" y="82" width="14" height="42" rx="4" fill="white" fillOpacity="0.45" />
     <rect x="86" y="96" width="14" height="14" rx="4" fill="white" fillOpacity="0.25" />
@@ -48,21 +40,15 @@ const IllustrationLeft = () => (
     <rect x="346" y="94" width="14" height="18" rx="4" fill="white" fillOpacity="0.2" />
     <rect x="366" y="88" width="14" height="30" rx="4" fill="white" fillOpacity="0.25" />
     <rect x="386" y="82" width="14" height="42" rx="4" fill="white" fillOpacity="0.3" />
-
-    {/* Transcript label + lines */}
     <rect x="46" y="150" width="100" height="9" rx="4.5" fill="white" fillOpacity="0.65" />
     <rect x="46" y="167" width="220" height="7" rx="3.5" fill="white" fillOpacity="0.28" />
     <rect x="46" y="180" width="180" height="7" rx="3.5" fill="white" fillOpacity="0.2" />
     <rect x="46" y="193" width="200" height="7" rx="3.5" fill="white" fillOpacity="0.15" />
-
-    {/* AI Summary inner card */}
     <rect x="46" y="218" width="348" height="88" rx="12" fill="white" fillOpacity="0.1" stroke="white" strokeOpacity="0.18" strokeWidth="1" />
     <rect x="62" y="234" width="60" height="8" rx="4" fill="#C4B5FD" fillOpacity="0.95" />
     <rect x="62" y="250" width="308" height="6" rx="3" fill="white" fillOpacity="0.35" />
     <rect x="62" y="263" width="240" height="6" rx="3" fill="white" fillOpacity="0.25" />
     <rect x="62" y="276" width="270" height="6" rx="3" fill="white" fillOpacity="0.2" />
-
-    {/* Mic icon — bottom center inside card */}
     <circle cx="220" cy="312" r="24" fill="white" fillOpacity="0.13" stroke="white" strokeOpacity="0.22" strokeWidth="1.5" />
     <rect x="213" y="300" width="14" height="18" rx="7" fill="white" fillOpacity="0.75" />
     <path d="M208 316c0 6.627 5.373 12 12 12s12-5.373 12-12" stroke="white" strokeOpacity="0.75" strokeWidth="2" strokeLinecap="round" />
@@ -71,34 +57,40 @@ const IllustrationLeft = () => (
   </svg>
 )
 
-export default function LoginPage({ onLogin }) {
-  const [email, setEmail] = useState('')
+export default function LoginPage() {
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
 
-  const handleContinue = (e) => {
-    e.preventDefault()
-    // TODO: handle email login
-  }
-
-  const handleGoogleLogin = () => {
-    onLogin()
+  const handleGoogleLogin = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      await signInWithGoogle()
+      // onAuthStateChanged in App.jsx will detect the new user and navigate to dashboard
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        setError('Sign-in failed. Please try again.')
+        console.error('Google sign-in error:', e)
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="grid grid-cols-12 min-h-screen">
-      {/* Left column — illustration */}
+
+      {/* ── Left column — brand illustration ── */}
       <div
         className="col-span-6 relative flex flex-col overflow-hidden"
         style={{ backgroundColor: '#7133AE', padding: '24px' }}
       >
-        {/* Subtle radial glow */}
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at 60% 35%, rgba(255,255,255,0.08) 0%, transparent 65%)',
-          }}
+          style={{ background: 'radial-gradient(ellipse at 60% 35%, rgba(255,255,255,0.08) 0%, transparent 65%)' }}
         />
 
-        {/* Logo — top left */}
+        {/* Logo */}
         <div className="flex items-center gap-2 z-10">
           <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -111,12 +103,8 @@ export default function LoginPage({ onLogin }) {
           <span className="text-white font-semibold text-base tracking-tight">MB Notetaker</span>
         </div>
 
-        {/* Centered content */}
         <div className="flex-1 flex flex-col items-center justify-center gap-6 z-10">
-          {/* Illustration */}
           <IllustrationLeft />
-
-          {/* Tagline — centered */}
           <div className="text-center">
             <h2 className="text-white text-2xl font-semibold leading-snug tracking-tight mb-2 whitespace-nowrap">
               Record. Transcribe. Summarize.
@@ -128,27 +116,32 @@ export default function LoginPage({ onLogin }) {
         </div>
       </div>
 
-      {/* Right column — login */}
+      {/* ── Right column — sign in ── */}
       <div className="col-span-6 flex items-center justify-center bg-white px-8 py-16">
         <div className="w-full max-w-sm">
-          {/* Heading */}
+
           <div className="mb-8">
-            <h1 className="text-gray-900 text-2xl font-semibold tracking-tight mb-1">
-              Welcome back
-            </h1>
-            <p className="text-gray-500 text-sm">
-              Sign in to your account to continue
-            </p>
+            <h1 className="text-gray-900 text-2xl font-semibold tracking-tight mb-1">Welcome back</h1>
+            <p className="text-gray-500 text-sm">Sign in to your account to continue</p>
           </div>
 
-          {/* Google CTA */}
+          {/* Google sign-in */}
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 cursor-pointer"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <GoogleIcon />
-            Continue with Google
+            {loading
+              ? <Loader2 size={18} className="animate-spin text-gray-400" />
+              : <GoogleIcon />
+            }
+            {loading ? 'Signing in…' : 'Continue with Google'}
           </button>
+
+          {/* Error message */}
+          {error && (
+            <p className="mt-3 text-xs text-red-500 text-center">{error}</p>
+          )}
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-5">
@@ -157,38 +150,30 @@ export default function LoginPage({ onLogin }) {
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-          {/* Email form */}
-          <form onSubmit={handleContinue} className="flex flex-col gap-3">
+          {/* Email form (placeholder — not wired to auth yet) */}
+          <form onSubmit={e => e.preventDefault()} className="flex flex-col gap-3">
             <div className="relative">
-              <Mail
-                size={16}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
+              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="email"
                 placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-all duration-150 bg-white"
-                onFocus={(e) => { e.target.style.boxShadow = '0 0 0 2px #7133AE33'; e.target.style.borderColor = '#7133AE' }}
-                onBlur={(e) => { e.target.style.boxShadow = ''; e.target.style.borderColor = '#e5e7eb' }}
+                onFocus={e => { e.target.style.boxShadow = '0 0 0 2px #7133AE33'; e.target.style.borderColor = '#7133AE' }}
+                onBlur={e => { e.target.style.boxShadow = ''; e.target.style.borderColor = '#e5e7eb' }}
               />
             </div>
-
             <button
               type="submit"
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-medium transition-all duration-150 cursor-pointer"
               style={{ backgroundColor: '#7133AE' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#7133AE' }}
             >
-              Continue
-              <ArrowRight size={16} />
+              Continue <ArrowRight size={16} />
             </button>
           </form>
 
-          {/* Footer note */}
           <p className="text-gray-400 text-xs text-center mt-6 leading-relaxed">
             By continuing, you agree to our{' '}
             <span className="underline cursor-pointer" style={{ color: '#7133AE' }}>Terms of Service</span>

@@ -42,6 +42,8 @@ export default function Sidebar({
   onCreateProject,
   onRenameProject,
   onDeleteProject,
+  currentUser = null,
+  onSignOut,
 }) {
   const [hoveredId,    setHoveredId]    = useState(null)
   const [openMenuId,   setOpenMenuId]   = useState(null)
@@ -275,23 +277,53 @@ export default function Sidebar({
           </nav>
         </div>
 
-        {/* Section 3 — Bottom: User profile + notification */}
+        {/* Section 3 — Bottom: User profile + sign out */}
         <div className="border-t border-gray-100 px-3 py-4">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-semibold"
-              style={{ backgroundColor: '#7133AE' }}
-            >
-              PK
-            </div>
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg group">
+
+            {/* Avatar — photo if available, else initials */}
+            {currentUser?.photoURL ? (
+              <img
+                src={currentUser.photoURL}
+                alt={currentUser.displayName ?? 'User'}
+                referrerPolicy="no-referrer"
+                className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-semibold"
+                style={{ backgroundColor: '#7133AE' }}
+              >
+                {currentUser?.displayName
+                  ? currentUser.displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                  : 'U'}
+              </div>
+            )}
+
+            {/* Name + email */}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 truncate leading-tight">Pavan K.</p>
-              <p className="text-xs text-gray-400 truncate leading-tight">pavan@company.com</p>
+              <p className="text-sm font-medium text-gray-800 truncate leading-tight">
+                {currentUser?.displayName ?? 'User'}
+              </p>
+              <p className="text-xs text-gray-400 truncate leading-tight">
+                {currentUser?.email ?? ''}
+              </p>
             </div>
-            <button className="relative flex-shrink-0 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <Bell size={17} className="text-gray-400 hover:text-gray-600 transition-colors" />
-              <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-red-500 border border-white" />
-            </button>
+
+            {/* Sign out button */}
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                title="Sign out"
+                className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
