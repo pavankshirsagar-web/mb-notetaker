@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Mic, Headphones, Laptop, Speaker, MonitorSpeaker, X, Radio, CheckCircle2, Users } from 'lucide-react'
+import { Mic, Headphones, Laptop, Speaker, MonitorSpeaker, X, Radio, CheckCircle2, Users, RefreshCw } from 'lucide-react'
 
 /* ── Detect device type from browser label string ──────────────────────────
    NOTE: 'Realtek' / 'HD Audio' / 'High Definition Audio' are DRIVER names,
@@ -97,8 +97,8 @@ export default function RecordingSetupModal({
   const [permErr,    setPermErr]    = useState(false)
 
   /* Enumerate mic devices — request permission first so labels are populated */
-  useEffect(() => {
-    setLoading(true)
+  const loadDevices = (isRefresh = false) => {
+    if (!isRefresh) setLoading(true)
     navigator.mediaDevices
       .getUserMedia({ audio: true, video: false })
       .then(stream => {
@@ -110,14 +110,24 @@ export default function RecordingSetupModal({
         const mics = all.filter(d => d.kind === 'audioinput')
         setDevices(mics)
         /* Pre-select first real (non-default, non-communications) device */
-        const preferred = mics.find(
-          d => d.deviceId !== 'default' && d.deviceId !== 'communications'
-        )
-        setSelectedId(preferred?.deviceId ?? mics[0]?.deviceId ?? 'default')
+        if (!isRefresh) {
+          const preferred = mics.find(
+            d => d.deviceId !== 'default' && d.deviceId !== 'communications'
+          )
+          setSelectedId(preferred?.deviceId ?? mics[0]?.deviceId ?? 'default')
+        }
         setLoading(false)
       })
       .catch(() => { setPermErr(true); setLoading(false) })
-  }, [])
+  }
+
+  useEffect(() => {
+    loadDevices()
+    /* Re-enumerate when headphones/BT devices are plugged in while modal is open */
+    const onDeviceChange = () => loadDevices(true)
+    navigator.mediaDevices.addEventListener('devicechange', onDeviceChange)
+    return () => navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const canStart = !loading && !permErr && devices.length > 0
 
@@ -150,9 +160,18 @@ export default function RecordingSetupModal({
 
           {/* ── Microphone selector ── */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 mb-2.5">
-              <Mic size={12} /> Select Microphone
-            </label>
+            <div className="flex items-center justify-between mb-2.5">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+                <Mic size={12} /> Select Microphone
+              </label>
+              <button
+                onClick={() => loadDevices(true)}
+                title="Plug in your headphone, then click to refresh the list"
+                className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <RefreshCw size={10} /> Refresh
+              </button>
+            </div>
 
             {permErr ? (
               <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">
@@ -294,12 +313,14 @@ export default function RecordingSetupModal({
                   <button onClick={onClearSysAudioError} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0 text-base leading-none">✕</button>
                 </div>
                 <p className="text-red-500 mb-1.5 leading-relaxed">{sysAudioError}</p>
-                <div className="text-gray-500 space-y-0.5">
+                <div className="text-gray-500 space-y-1">
                   <p className="font-medium text-gray-600">In the sharing dialog:</p>
-                  <p>1. Click <strong>Chrome Tab</strong></p>
-                  <p>2. Select your <strong>Google Meet / Zoom</strong> tab</p>
-                  <p>3. Check <strong>"Share tab audio" ✅</strong></p>
-                  <p>4. Click <strong>Share</strong></p>
+                  <p>1. Select <strong>Entire Screen</strong> (first tab)</p>
+                  <p>2. Make sure <strong>"Also share system audio" ✅</strong> is checked</p>
+                  <p>3. Click <strong>Share</strong></p>
+                  <p className="text-gray-400 pt-0.5">
+                    <em>Using Zoom desktop app?</em> Open Zoom in your browser instead, or use <strong>Window</strong> tab → select Zoom window.
+                  </p>
                 </div>
               </div>
             )}

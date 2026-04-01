@@ -1,6 +1,124 @@
 import { useEffect, useRef, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { Folder, X, Mic, Pause, Play, Square, Search, RefreshCw, ShieldCheck, MonitorSpeaker, MonitorX, Users } from 'lucide-react'
+import { Folder, X, Mic, Pause, Play, Square, Search, RefreshCw, ShieldCheck, MonitorSpeaker, ChevronDown, Check } from 'lucide-react'
+
+/* ── Short display name for a mic device ─────────────────────────────────── */
+function micShortLabel(device) {
+  if (!device) return 'Microphone'
+  const l = device.label || 'Microphone'
+  // Strip parenthetical driver info: "Microphone (Realtek Audio)" → "Microphone"
+  const stripped = l.replace(/\s*\([^)]*\)\s*$/, '').trim()
+  // Truncate long names
+  return stripped.length > 22 ? stripped.slice(0, 20) + '…' : stripped || 'Microphone'
+}
+
+/* ── Mic change dropdown ─────────────────────────────────────────────────── */
+function MicSelector({ devices = [], selectedId, onChange, onRefresh }) {
+  const [open,        setOpen]        = useState(false)
+  const [refreshing,  setRefreshing]  = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const selected = devices.find(d => d.deviceId === selectedId) ?? devices[0]
+  // Filter out "Communications" duplicate, keep unique labels
+  const visible = devices.filter(d => d.deviceId !== 'communications')
+
+  const handleRefresh = async (e) => {
+    e.stopPropagation()
+    setRefreshing(true)
+    await onRefresh?.()
+    setTimeout(() => setRefreshing(false), 600)
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all"
+        style={{
+          backgroundColor: open ? '#7133AE10' : '#f9fafb',
+          borderColor: open ? '#7133AE50' : '#e5e7eb',
+          color: open ? '#7133AE' : '#6b7280',
+          cursor: 'pointer',
+        }}
+        title="Change microphone"
+      >
+        <Mic size={11} />
+        <span>{visible.length ? micShortLabel(selected) : 'Microphone'}</span>
+        <ChevronDown size={11} className="transition-transform duration-150" style={{ transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-8 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[240px]"
+          style={{ maxHeight: 280, overflowY: 'auto' }}
+        >
+          {/* Header row */}
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Select Microphone</p>
+            <button
+              onClick={handleRefresh}
+              title="Refresh device list — plug in your headphone then click here"
+              className="p-1 rounded-md transition-colors"
+              style={{ cursor: 'pointer', color: refreshing ? '#7133AE' : '#9ca3af' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+            >
+              <RefreshCw size={11} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          {/* Device list */}
+          {visible.length === 0 ? (
+            <p className="px-3 py-3 text-xs text-gray-400 text-center">
+              No microphones found.<br />
+              <span className="text-gray-500">Plug in your headphone, then click ↻</span>
+            </p>
+          ) : (
+            visible.map(d => {
+              const isSel = d.deviceId === (selectedId ?? devices[0]?.deviceId)
+              return (
+                <button
+                  key={d.deviceId}
+                  onClick={() => { onChange(d.deviceId); setOpen(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors"
+                  style={{
+                    backgroundColor: isSel ? '#7133AE08' : 'transparent',
+                    color: isSel ? '#7133AE' : '#374151',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.backgroundColor = '#f9fafb' }}
+                  onMouseLeave={(e) => { if (!isSel) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: isSel ? '#7133AE15' : '#f3f4f6' }}>
+                    <Mic size={11} style={{ color: isSel ? '#7133AE' : '#9ca3af' }} />
+                  </div>
+                  <span className="flex-1 font-medium leading-snug" style={{ fontSize: 12 }}>
+                    {d.label || `Microphone ${visible.indexOf(d) + 1}`}
+                  </span>
+                  {isSel && <Check size={13} style={{ color: '#7133AE', flexShrink: 0 }} />}
+                </button>
+              )
+            })
+          )}
+
+          {/* Hint footer */}
+          <div className="px-3 py-2 border-t border-gray-100">
+            <p className="text-[10px] text-gray-400 leading-relaxed">
+              Don't see your headphone? Plug it in, then click ↻ to refresh.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 /* ─────────────────────────────────────────────
    HELPERS
@@ -252,6 +370,10 @@ export default function Dashboard({
   onClearSysAudioError,
   onStopSystemAudio,
   onEnableSystemAudio,
+  micDevices      = [],
+  selectedMicId   = null,
+  onChangeMic,
+  onRefreshMicDevices,
   onNavigateToProject,
   onNavigateToDashboard,
   onCreateProject,
@@ -370,6 +492,14 @@ export default function Dashboard({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* ── Mic selector — always shown so user can refresh/select even if list seems empty ── */}
+              <MicSelector
+                devices={micDevices}
+                selectedId={selectedMicId}
+                onChange={onChangeMic}
+                onRefresh={onRefreshMicDevices}
+              />
+
               {/* ── System Audio toggle ── */}
               <div className="relative">
                 <button
@@ -429,10 +559,10 @@ export default function Dashboard({
                     <p className="text-gray-500 leading-relaxed mb-2">{sysAudioError}</p>
                     <div className="bg-gray-50 rounded-lg p-2 space-y-1 text-gray-500">
                       <p className="font-medium text-gray-600">In the sharing dialog:</p>
-                      <p>1. Click <strong>Chrome Tab</strong></p>
-                      <p>2. Select your <strong>Google Meet / Zoom</strong> tab</p>
-                      <p>3. Check <strong>"Share tab audio" ✅</strong></p>
-                      <p>4. Click <strong>Share</strong></p>
+                      <p>1. Select <strong>Entire Screen</strong> (first tab)</p>
+                      <p>2. Make sure <strong>"Also share system audio" ✅</strong> is checked</p>
+                      <p>3. Click <strong>Share</strong></p>
+                      <p className="text-gray-400 pt-0.5"><em>Zoom desktop?</em> Use <strong>Window</strong> tab → select Zoom window.</p>
                     </div>
                   </div>
                 )}

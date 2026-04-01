@@ -213,20 +213,54 @@ export default function App() {
   const [systemAudioOn,      setSystemAudioOn]      = useState(false)
   const [sysAudioLoading,    setSysAudioLoading]    = useState(false)
 
+  /* ── Mic device list (for live mic-change dropdown) ── */
+  const [micDevices,    setMicDevices]    = useState([])   // MediaDeviceInfo[]
+  const [selectedMicId, setSelectedMicId] = useState(null) // currently active device ID
+
   // Keep refs in sync with state (used inside recognition callbacks)
   isRecordingRef.current = isRecording
   isPausedRef.current    = isPaused
 
   const autosaveRef = useRef({})
 
-  /* ── On mount: detect interrupted session ── */
+  /* ── Enumerate mic devices ──────────────────────────────────────────────────
+     Browser only exposes device labels after mic permission is granted.
+     We silently request getUserMedia first (to unlock labels), then enumerate.
+     If permission is already granted the stream is created + immediately stopped.
+     If it's denied we still enumerate — devices appear but with empty labels.
+  ────────────────────────────────────────────────────────────────────────────── */
+  const refreshMicDevices = async () => {
+    try {
+      // Request permission to unlock labels (no-op if already granted)
+      const tmp = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      tmp.getTracks().forEach(t => t.stop())
+    } catch { /* permission denied — still enumerate below */ }
+
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices()
+      setMicDevices(all.filter(d => d.kind === 'audioinput'))
+    } catch { /* silently ignore */ }
+  }
+
+  /* ── On mount: detect interrupted session + do initial device enum ── */
   useEffect(() => {
     const raw = localStorage.getItem(AUTOSAVE_KEY)
     if (raw) {
       try { setRecoveryData(JSON.parse(raw)) }
       catch { localStorage.removeItem(AUTOSAVE_KEY) }
     }
-  }, [])
+    refreshMicDevices()
+
+    /* ── devicechange: refresh list when headphones/BT devices are plugged in ── */
+    const onDeviceChange = () => refreshMicDevices()
+    navigator.mediaDevices.addEventListener('devicechange', onDeviceChange)
+    return () => navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Re-enumerate mics when recording starts (permission now granted → labels visible) ── */
+  useEffect(() => {
+    if (isRecording) refreshMicDevices()
+  }, [isRecording]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Keep autosave ref current ── */
   useEffect(() => {
@@ -364,6 +398,25 @@ export default function App() {
     setSysAudioError('')
   }
 
+  /* ── Change microphone during live transcription ─────────────────────────────
+     Stores the new device ID and, if recording is active, restarts Deepgram
+     so the new mic is picked up immediately. The meeting audio stream stored in
+     sysStreamRef is preserved and automatically reused by startDeepgram().
+  ────────────────────────────────────────────────────────────────────────────── */
+  const changeMic = async (deviceId) => {
+    selectedDeviceIdRef.current = deviceId
+    setSelectedMicId(deviceId)
+    if (!isRecordingRef.current) return
+    // Stop current mic stream
+    micStreamRef.current?.getTracks().forEach(t => t.stop())
+    micStreamRef.current   = null
+    micAnalyserRef.current = null
+    // Restart Deepgram (sysStreamRef is preserved — meeting audio continues)
+    stopDeepgram()
+    await new Promise(r => setTimeout(r, 200))
+    await startDeepgram()
+  }
+
   /* ── Enable meeting audio — works both BEFORE and DURING recording ──────────
      IMPORTANT: getDisplayMedia() must be the VERY FIRST await inside this
      function. Any await before it (even setTimeout or postMessage) will expire
@@ -377,28 +430,41 @@ export default function App() {
     setSysAudioLoading(true)
 
     try {
-      /* ── Step 1: Show tab-picker dialog (user just clicked = user gesture ✅) ── */
+      /* ── Step 1: Show Chrome's audio-source picker ──────────────────────────
+         This is a browser-enforced security dialog. Your SCREEN IS NOT recorded —
+         we immediately discard the video track and only keep the audio stream.
+
+         Hints passed to Chrome:
+           displaySurface:'monitor'     → opens on "Entire Screen" tab by default
+           systemAudio:'include'        → pre-checks "Also share system audio"
+           selfBrowserSurface:'exclude' → hides this app tab from the list        */
       let disp
       try {
         disp = await navigator.mediaDevices.getDisplayMedia({
-          video: { width: 1, height: 1, frameRate: 1 },  // Chrome requires video:true
-          audio: true,
+          video: { displaySurface: 'monitor', width: 1, height: 1, frameRate: 1 },
+          audio: { suppressLocalAudioPlayback: false, echoCancellation: false, noiseSuppression: false },
+          systemAudio:        'include',   // pre-check "Also share system audio"
+          selfBrowserSurface: 'exclude',   // hide this tab
+          surfaceSwitching:   'include',
         })
       } catch (e) {
-        // NotAllowedError = user cancelled the dialog — no error message needed
         if (e.name !== 'NotAllowedError') {
-          setSysAudioError('Could not open sharing dialog: ' + e.message)
+          setSysAudioError('Could not open audio picker: ' + e.message)
         }
-        return
+        return   // user cancelled — silent
       }
 
-      // Drop the video track immediately — we only needed it to open the dialog
+      // ⚡ Drop video immediately — screen content is NEVER recorded or sent anywhere
       disp.getVideoTracks().forEach(t => t.stop())
 
       const audioTracks = disp.getAudioTracks()
       if (!audioTracks.length) {
         disp.getTracks().forEach(t => t.stop())
-        setSysAudioError('No audio captured — in the dialog select the Chrome Tab and check ✅ "Share tab audio"')
+        setSysAudioError(
+          'No audio captured. ' +
+          'For Zoom / Meet in browser → pick the Chrome Tab → Share. ' +
+          'For Zoom desktop app → pick "Entire screen" → turn ON "Also share system audio" → Share.'
+        )
         return
       }
 
@@ -819,6 +885,7 @@ export default function App() {
   const confirmStartRecording = ({ project, deviceId }) => {
     // Store selected mic device ID for startDeepgram
     selectedDeviceIdRef.current = deviceId || null
+    setSelectedMicId(deviceId || null)
     setSetupProject(null)   // close modal
 
     // Reset recording state
@@ -924,6 +991,10 @@ export default function App() {
           onStopSystemAudio={stopSystemAudio}
           onEnableSystemAudio={enableMeetingAudio}
           sysAudioLoading={sysAudioLoading}
+          micDevices={micDevices}
+          selectedMicId={selectedMicId}
+          onChangeMic={changeMic}
+          onRefreshMicDevices={refreshMicDevices}
           onPause={() => setIsPaused(true)}
           onResume={() => setIsPaused(false)}
           onEnd={handleEndRecording}
