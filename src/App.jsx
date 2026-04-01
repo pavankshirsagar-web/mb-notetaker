@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import FloatingRecordingWidget   from './components/FloatingRecordingWidget'
-import RecordingSetupModal       from './components/RecordingSetupModal'
+import PiPWidget          from './components/PiPWidget'
+import RecordingSetupModal from './components/RecordingSetupModal'
 import LoginPage    from './pages/LoginPage'
 import Dashboard    from './pages/Dashboard'
 import ProjectPage  from './pages/ProjectPage'
@@ -213,13 +213,19 @@ export default function App() {
   const [systemAudioOn,      setSystemAudioOn]      = useState(false)
   const [sysAudioLoading,    setSysAudioLoading]    = useState(false)
 
+  /* ── Document PiP overlay ── */
+  const [pipOpen,    setPipOpen]  = useState(false)
+  const pipWindowRef = useRef(null)
+  const pageRef      = useRef('login')   // always-current page, safe inside event closures
+
   /* ── Mic device list (for live mic-change dropdown) ── */
   const [micDevices,    setMicDevices]    = useState([])   // MediaDeviceInfo[]
   const [selectedMicId, setSelectedMicId] = useState(null) // currently active device ID
 
-  // Keep refs in sync with state (used inside recognition callbacks)
+  // Keep refs in sync with state (used inside event-listener closures)
   isRecordingRef.current = isRecording
   isPausedRef.current    = isPaused
+  pageRef.current        = page
 
   const autosaveRef = useRef({})
 
@@ -796,9 +802,84 @@ export default function App() {
   }, [isRecording, isPaused])
 
   /* ── Navigation ── */
-  const navToProject   = (id) => { setActiveProjectId(id); setPage('project') }
-  const navToMeeting   = (id) => { setActiveMeetingId(id); setPage('meeting') }
-  const navToDashboard = ()   => setPage('dashboard')
+  /* ── PiP: open (must be called inside a user-gesture handler) ── */
+  /* ── Open Document PiP window ───────────────────────────────────────────
+     requestWindow() is allowed from:
+       • direct user-gesture handlers (sidebar clicks, modal confirm)
+       • visibilitychange events (Chrome allows this — same mechanism Google Meet uses)
+  ────────────────────────────────────────────────────────────────────────── */
+  const openPiP = async () => {
+    if (!window.documentPictureInPicture) return
+    if (pipWindowRef.current) return
+    try {
+      const pipWin = await window.documentPictureInPicture.requestWindow({
+        width: 230, height: 120,
+        disallowReturnToOpener: false,
+      })
+      pipWin.document.documentElement.style.cssText = 'margin:0;padding:0;width:100%;height:100%;'
+      pipWin.document.body.style.cssText =
+        'margin:0;padding:0;width:100%;height:100%;overflow:hidden;' +
+        'background:linear-gradient(135deg,#1E1130 0%,#150C26 100%);' +
+        'display:flex;align-items:center;justify-content:center;'
+      ;[...document.querySelectorAll('link[rel=stylesheet],style')].forEach(el => {
+        try { pipWin.document.head.appendChild(el.cloneNode(true)) } catch (_) {}
+      })
+      pipWin.addEventListener('pagehide', () => { pipWindowRef.current = null; setPipOpen(false) })
+      pipWindowRef.current = pipWin
+      setPipOpen(true)
+    } catch (e) { console.warn('PiP open failed:', e.name, e.message) }
+  }
+
+  const closePiP = () => {
+    try { pipWindowRef.current?.close() } catch (_) {}
+    pipWindowRef.current = null
+    setPipOpen(false)
+  }
+
+  /* ── Visibility-based PiP — the Google Meet pattern ─────────────────────
+     Chrome fires visibilitychange with sufficient activation to call
+     requestWindow(). When the user switches to any other tab, window, or app
+     the event fires with document.hidden = true → we open PiP.
+     When the user returns and is on the transcription screen → we close PiP.
+  ────────────────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    const onVisibility = async () => {
+      if (!isRecordingRef.current) return
+      if (document.hidden) {
+        // User left this tab / switched to another app
+        if (!pipWindowRef.current) await openPiP()
+      } else {
+        // User returned to this tab — close PiP only if on transcription screen
+        if (pageRef.current === 'dashboard') closePiP()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Auto-close PiP when user navigates back to transcription screen ─────
+     Covers all in-app paths back to dashboard (navToDashboard, project-start
+     setup, recovery, etc.) when the tab is already in the foreground.
+  ────────────────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (page === 'dashboard' && !document.hidden) closePiP()
+  }, [page]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Navigation ──────────────────────────────────────────────────────────
+     In-app navigation away from dashboard is itself a user gesture (click),
+     so requestWindow() is allowed directly in these handlers.
+  ────────────────────────────────────────────────────────────────────────── */
+  const navToProject = (id) => {
+    setActiveProjectId(id)
+    setPage('project')
+    if (isRecordingRef.current && !pipWindowRef.current) openPiP()
+  }
+  const navToMeeting = (id) => {
+    setActiveMeetingId(id)
+    setPage('meeting')
+    if (isRecordingRef.current && !pipWindowRef.current) openPiP()
+  }
+  const navToDashboard = () => setPage('dashboard')
 
   /* ── Meeting helpers ── */
   const buildMeeting = () => ({
@@ -833,6 +914,8 @@ export default function App() {
   }
 
   const handleEndRecording = () => {
+    isRecordingRef.current = false    // zero immediately so navToProject won't reopen PiP
+    closePiP()                        // close PiP before navigation
     const meeting = buildMeeting()
     const pid     = recProject.id
     setMeetings(prev => [meeting, ...prev])
@@ -1039,17 +1122,20 @@ export default function App() {
         />
       )}
 
-      {/* Floating widget — shown when recording and user navigates away from dashboard */}
-      {isRecording && page !== 'dashboard' && (
-        <FloatingRecordingWidget
-          seconds={recSeconds}
-          isPaused={isPaused}
-          onPause={() => setIsPaused(true)}
-          onResume={() => setIsPaused(false)}
-          onStop={handleEndRecording}
-          onReturn={navToDashboard}
-        />
-      )}
+      {/* Document PiP overlay — cross-tab, cross-app floating controls.
+           Opens automatically when user navigates away from transcription screen.
+           Closes automatically when user returns to transcription screen.
+           Never rendered while user is on the transcription screen. */}
+      <PiPWidget
+        isOpen={pipOpen}
+        pipWindowRef={pipWindowRef}
+        seconds={recSeconds}
+        isPaused={isPaused}
+        onPause={() => setIsPaused(true)}
+        onResume={() => setIsPaused(false)}
+        onStop={handleEndRecording}
+        onReturn={() => { navToDashboard(); window.focus() }}
+      />
 
       {/* Recording setup modal — mic selection + system audio toggle */}
       {setupProject && (

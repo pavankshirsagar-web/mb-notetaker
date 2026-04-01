@@ -36,7 +36,8 @@
       "Bash(findstr LISTENING)",
       "Bash(start /B npm run dev)",
       "Bash(timeout /t 6 /nobreak)",
-      "Bash(findstr \":5173\")"
+      "Bash(findstr \":5173\")",
+      "Bash(powershell -Command \"Select-String -Path ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\src\\\\App.jsx'' -Pattern ''navToProject|navToDashboard|navToMeeting|closePiP|openPiP|setPage'' | Select-Object LineNumber, Line\")"
     ]
   }
 }
