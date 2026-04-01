@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Mail, ArrowRight, Loader2 } from 'lucide-react'
-import { signInWithGoogle } from '../lib/firebase'
+import { Mail, ArrowRight, Loader2, AlertTriangle } from 'lucide-react'
+import { signInWithGoogle, firebaseConfigured } from '../lib/firebase'
 
 const GoogleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -125,11 +125,24 @@ export default function LoginPage() {
             <p className="text-gray-500 text-sm">Sign in to your account to continue</p>
           </div>
 
+          {/* Firebase setup notice — only shown when .env is not filled in */}
+          {!firebaseConfigured && (
+            <div className="mb-5 flex gap-2.5 items-start p-3 rounded-xl bg-amber-50 border border-amber-200">
+              <AlertTriangle size={15} className="text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-amber-700 mb-0.5">Firebase not configured</p>
+                <p className="text-xs text-amber-600 leading-relaxed">
+                  Add your <code className="font-mono bg-amber-100 px-0.5 rounded">VITE_FIREBASE_*</code> keys to <code className="font-mono bg-amber-100 px-0.5 rounded">.env</code> and restart the dev server to enable Google sign-in.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Google sign-in */}
           <button
             onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={loading || !firebaseConfigured}
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading
               ? <Loader2 size={18} className="animate-spin text-gray-400" />
