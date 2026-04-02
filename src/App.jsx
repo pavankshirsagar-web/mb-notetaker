@@ -223,6 +223,10 @@ export default function App() {
   const pipWindowRef = useRef(null)
   const pageRef      = useRef('login')   // always-current page, safe inside event closures
 
+  /* ── Real-time waveform heights (0-255 per bar, driven by AnalyserNode) ── */
+  const [waveHeights, setWaveHeights] = useState(Array(20).fill(0))
+  const waveRafRef = useRef(null)
+
   /* ── Mic device list (for live mic-change dropdown) ── */
   const [micDevices,    setMicDevices]    = useState([])   // MediaDeviceInfo[]
   const [selectedMicId, setSelectedMicId] = useState(null) // currently active device ID
@@ -347,6 +351,43 @@ export default function App() {
       }
     }, 80)
     return () => clearInterval(id)
+  }, [isRecording, isPaused])
+
+  /* ── Real-time audio waveform — AnalyserNode → bar heights at ~30 fps ──────
+     Reads frequency data from the mic AnalyserNode and maps BAR_COUNT bins to
+     pixel heights that drive the AnimatedWaveform in Dashboard and PiPWidget.
+     The RAF loop runs only while recording AND not paused.
+     When paused: last heights are kept frozen (natural "freeze" effect).
+     When stopped: heights reset to zero.
+  ────────────────────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    const BAR_COUNT = 20
+    if (!isRecording) {
+      cancelAnimationFrame(waveRafRef.current)
+      setWaveHeights(Array(BAR_COUNT).fill(0))
+      return
+    }
+    if (isPaused) {
+      cancelAnimationFrame(waveRafRef.current)
+      return
+    }
+    let lastTime = 0
+    const draw = (timestamp) => {
+      waveRafRef.current = requestAnimationFrame(draw)
+      if (timestamp - lastTime < 33) return   // cap at ~30 fps
+      lastTime = timestamp
+      if (!micAnalyserRef.current) return     // wait until analyser is ready
+      const bins = new Uint8Array(micAnalyserRef.current.frequencyBinCount)
+      micAnalyserRef.current.getByteFrequencyData(bins)
+      // Voice frequencies sit roughly in bins 2-80 (of 128 total @ fftSize=256)
+      const step = 78 / BAR_COUNT
+      const heights = Array.from({ length: BAR_COUNT }, (_, i) =>
+        bins[Math.round(2 + i * step)] ?? 0
+      )
+      setWaveHeights(heights)
+    }
+    waveRafRef.current = requestAnimationFrame(draw)
+    return () => cancelAnimationFrame(waveRafRef.current)
   }, [isRecording, isPaused])
 
   /* ── Speaker detection using accumulated energy window ─────────────────────
@@ -1115,6 +1156,7 @@ export default function App() {
           onDeleteProject={handleDeleteProject}
           currentUser={currentUser}
           onSignOut={signOutUser}
+          waveHeights={waveHeights}
         />
       )}
 
@@ -1149,6 +1191,7 @@ export default function App() {
           onDeleteProject={handleDeleteProject}
           currentUser={currentUser}
           onSignOut={signOutUser}
+          waveHeights={waveHeights}
         />
       )}
 
@@ -1161,6 +1204,7 @@ export default function App() {
         pipWindowRef={pipWindowRef}
         seconds={recSeconds}
         isPaused={isPaused}
+        waveHeights={waveHeights}
         onPause={() => setIsPaused(true)}
         onResume={() => setIsPaused(false)}
         onStop={handleEndRecording}

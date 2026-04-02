@@ -8,18 +8,18 @@ function fmt(s) {
   return `${m}:${sec}`
 }
 
-/* 6 bars — staggered delays give a natural-looking waveform */
-const BARS = [
-  { delay: '0s',     h: 10 },
-  { delay: '0.15s',  h: 18 },
-  { delay: '0.08s',  h: 13 },
-  { delay: '0.25s',  h: 20 },
-  { delay: '0.32s',  h: 11 },
-  { delay: '0.18s',  h: 16 },
-]
+/* Maps a raw analyser value (0-255) to a pixel height for the PiP mini-waveform.
+   Container is 20 px tall; bars range from 3 px (silence) to 17 px (peak). */
+const toPipBarHeight = (v) => Math.max(3, Math.round(3 + (v / 255) * 14))
 
 /* ── PiP pill rendered into the Document PiP window via a React portal ──── */
-function PiPContent({ seconds, isPaused, onPause, onResume, onStop, onReturn }) {
+function PiPContent({ seconds, isPaused, waveHeights, onPause, onResume, onStop, onReturn }) {
+  /* Pick 6 evenly-spaced bars from the 20-bar waveHeights array */
+  const PIP_BAR_COUNT = 6
+  const heights = waveHeights ?? Array(PIP_BAR_COUNT).fill(0)
+  const step    = Math.max(1, Math.floor(heights.length / PIP_BAR_COUNT))
+  const bars    = Array.from({ length: PIP_BAR_COUNT }, (_, i) => heights[i * step] ?? 0)
+
   return (
     /* Clicking the outer wrapper (not the buttons) returns to transcription */
     <div
@@ -35,19 +35,18 @@ function PiPContent({ seconds, isPaused, onPause, onResume, onStop, onReturn }) 
           isPaused ? '' : 'outline outline-1 outline-red-500/40',
         ].filter(Boolean).join(' ')}
       >
-        {/* Live waveform — bars animate while recording, freeze while paused */}
+        {/* Live waveform — heights driven by real mic audio data */}
         <div className="flex items-end gap-[2px]" style={{ height: 20 }}>
-          {BARS.map(({ delay, h }, i) => (
+          {bars.map((v, i) => (
             <span
               key={i}
-              className={isPaused ? 'wave-bar' : 'wave-bar'}
               style={{
-                animationDelay: delay,
-                height: h,
+                display: 'inline-block',
                 width: 3,
                 borderRadius: 2,
+                height: toPipBarHeight(v),
                 background: isPaused ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.7)',
-                animationPlayState: isPaused ? 'paused' : 'running',
+                transition: 'height 80ms ease-out',
               }}
             />
           ))}
@@ -89,7 +88,7 @@ function PiPContent({ seconds, isPaused, onPause, onResume, onStop, onReturn }) 
 /* ── Wrapper — mounts/unmounts the portal when PiP window opens/closes ───── */
 export default function PiPWidget({
   isOpen, pipWindowRef,
-  seconds, isPaused,
+  seconds, isPaused, waveHeights,
   onPause, onResume, onStop, onReturn,
 }) {
   const [pipBody, setPipBody] = useState(null)
@@ -108,6 +107,7 @@ export default function PiPWidget({
     <PiPContent
       seconds={seconds}
       isPaused={isPaused}
+      waveHeights={waveHeights}
       onPause={onPause}
       onResume={onResume}
       onStop={onStop}
