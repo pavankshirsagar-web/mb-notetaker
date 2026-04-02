@@ -1129,6 +1129,8 @@ export default function App() {
     currentSpeaker.current = 0
     speakerEnergy.current  = { micSum: 0, sysSum: 0, n: 0 }
     setRecProject(project)
+    isRecordingRef.current = true   // sync immediately — don't wait for React render
+    isPausedRef.current    = false  // sync immediately
     setIsRecording(true)
     setIsPaused(false)
     setRecSeconds(0)
@@ -1148,6 +1150,8 @@ export default function App() {
   const handleResumeRecovery = () => {
     const d = recoveryData
     setRecProject(d.project); setRecSeconds(d.seconds ?? 0)
+    isRecordingRef.current = true   // sync immediately
+    isPausedRef.current    = false  // sync immediately
     setRecLines(d.lines ?? []); setIsPaused(false); setIsRecording(true)
     setRecoveryData(null)
     // PiP opens automatically when user navigates away from dashboard
