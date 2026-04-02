@@ -1,6 +1,7 @@
 import { initializeApp }                               from 'firebase/app'
 import { getAuth, GoogleAuthProvider, signInWithPopup,
          signOut, onAuthStateChanged }                  from 'firebase/auth'
+import { getFirestore }                                 from 'firebase/firestore'
 
 /* ── Firebase project config ─────────────────────────────────────────────────
    Fill these in .env after creating a Firebase project:
@@ -31,10 +32,12 @@ const CONFIG_READY = Boolean(
 export const firebaseConfigured = CONFIG_READY
 
 let auth = null
+let db   = null
 
 if (CONFIG_READY) {
   const app = initializeApp(firebaseConfig)
   auth      = getAuth(app)
+  db        = getFirestore(app)
 } else {
   console.warn(
     '[MB Notetaker] Firebase env vars not set.\n' +
@@ -43,7 +46,7 @@ if (CONFIG_READY) {
   )
 }
 
-export { auth }
+export { auth, db }
 
 /* ── Google sign-in ── */
 export const signInWithGoogle = async () => {

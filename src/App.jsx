@@ -5,7 +5,10 @@ import LoginPage    from './pages/LoginPage'
 import Dashboard    from './pages/Dashboard'
 import ProjectPage  from './pages/ProjectPage'
 import MeetingDetail from './pages/MeetingDetail'
-import { listenAuthState, signOutUser, firebaseConfigured } from './lib/firebase'
+import { listenAuthState, signOutUser, firebaseConfigured, db } from './lib/firebase'
+import {
+  collection, doc, getDocs, setDoc, deleteDoc, writeBatch,
+} from 'firebase/firestore'
 
 /* ─── Constants ─── */
 const AUTOSAVE_KEY = 'mb_notetaker_autosave'
@@ -175,6 +178,7 @@ export default function App() {
   /* ── Auth ── */
   const [currentUser,   setCurrentUser]   = useState(null)   // Firebase User object
   const [authChecked,   setAuthChecked]   = useState(false)  // true once onAuthStateChanged fires
+  const [dataLoading,   setDataLoading]   = useState(false)  // true while loading Firestore data
 
   /* ── Page / navigation ── */
   const [page,            setPage]            = useState('login')
@@ -257,6 +261,83 @@ export default function App() {
     } catch { /* silently ignore */ }
   }
 
+  /* ── Firestore helpers ───────────────────────────────────────────────────────
+     All data is stored under:  users/{uid}/projects/{projectId}
+                                users/{uid}/meetings/{meetingId}
+     Project doc IDs are String(project.id); meeting doc IDs are meeting.id.
+  ────────────────────────────────────────────────────────────────────────────── */
+
+  /** Load the user's projects + meetings from Firestore on login. */
+  const loadUserData = async (uid) => {
+    if (!db) return
+    setDataLoading(true)
+    try {
+      const [projSnap, meetSnap] = await Promise.all([
+        getDocs(collection(db, 'users', uid, 'projects')),
+        getDocs(collection(db, 'users', uid, 'meetings')),
+      ])
+
+      const loadedProjects = projSnap.docs.map(d => d.data())
+      const loadedMeetings = meetSnap.docs.map(d => d.data())
+
+      if (loadedProjects.length === 0) {
+        // First login — seed with the four starter projects
+        const batch = writeBatch(db)
+        INITIAL_PROJECTS.forEach(p =>
+          batch.set(doc(db, 'users', uid, 'projects', String(p.id)), p)
+        )
+        await batch.commit()
+        setProjects(INITIAL_PROJECTS)
+      } else {
+        setProjects(loadedProjects)
+      }
+
+      // Sort newest-first (meeting IDs are timestamp strings)
+      loadedMeetings.sort((a, b) => b.id.localeCompare(a.id))
+      setMeetings(loadedMeetings)
+    } catch (e) {
+      console.error('[Firestore] loadUserData failed:', e)
+    } finally {
+      setDataLoading(false)
+    }
+  }
+
+  /** Upsert a single project doc. */
+  const fsSaveProject = (uid, project) => {
+    if (!db || !uid) return
+    setDoc(doc(db, 'users', uid, 'projects', String(project.id)), project)
+      .catch(e => console.error('[Firestore] saveProject failed:', e))
+  }
+
+  /** Delete a project doc and all meetings that belong to it. */
+  const fsDeleteProject = async (uid, projectId, meetingsList) => {
+    if (!db || !uid) return
+    try {
+      const batch = writeBatch(db)
+      batch.delete(doc(db, 'users', uid, 'projects', String(projectId)))
+      meetingsList
+        .filter(m => m.projectId === projectId)
+        .forEach(m => batch.delete(doc(db, 'users', uid, 'meetings', m.id)))
+      await batch.commit()
+    } catch (e) {
+      console.error('[Firestore] deleteProject failed:', e)
+    }
+  }
+
+  /** Upsert a single meeting doc. */
+  const fsSaveMeeting = (uid, meeting) => {
+    if (!db || !uid) return
+    setDoc(doc(db, 'users', uid, 'meetings', meeting.id), meeting)
+      .catch(e => console.error('[Firestore] saveMeeting failed:', e))
+  }
+
+  /** Delete a single meeting doc. */
+  const fsDeleteMeeting = (uid, meetingId) => {
+    if (!db || !uid) return
+    deleteDoc(doc(db, 'users', uid, 'meetings', meetingId))
+      .catch(e => console.error('[Firestore] deleteMeeting failed:', e))
+  }
+
   /* ── Firebase auth state ────────────────────────────────────────────────────
      onAuthStateChanged fires once immediately with the cached user (or null),
      then again whenever login / logout happens.
@@ -268,10 +349,20 @@ export default function App() {
     const unsubscribe = listenAuthState((user) => {
       setCurrentUser(user)
       setAuthChecked(true)
-      setPage(user ? 'dashboard' : 'login')
+      if (user) {
+        setPage('dashboard')
+        loadUserData(user.uid)   // fetch projects + meetings from Firestore
+      } else {
+        setPage('login')
+        // Clear all user data from memory when logging out
+        setProjects(INITIAL_PROJECTS)
+        setMeetings([])
+        setActiveProjectId(null)
+        setActiveMeetingId(null)
+      }
     })
     return unsubscribe
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── On mount: detect interrupted session + do initial device enum ── */
   useEffect(() => {
@@ -981,6 +1072,7 @@ export default function App() {
     const meeting = buildMeeting()
     const pid     = recProject.id
     setMeetings(prev => [meeting, ...prev])
+    fsSaveMeeting(currentUser?.uid, meeting)   // persist to Firestore
     clearRecording()
     navToProject(pid)
   }
@@ -1084,6 +1176,7 @@ export default function App() {
         summary:     generateSummaryFromTranscript(d.lines ?? []),
       }
       setMeetings(prev => [meeting, ...prev])
+      fsSaveMeeting(currentUser?.uid, meeting)  // persist recovered meeting
       // Clear recovery and start fresh recording in same project
       localStorage.removeItem(AUTOSAVE_KEY)
       setRecoveryData(null)
@@ -1091,21 +1184,41 @@ export default function App() {
     }
   }
 
-  const handleUpdateMeeting = (updated) =>
+  const handleUpdateMeeting = (updated) => {
     setMeetings(prev => prev.map(m => m.id === updated.id ? updated : m))
+    fsSaveMeeting(currentUser?.uid, updated)   // persist edits (title, summary, etc.)
+  }
 
   const handleCreateProject = () => {
-    const id = Date.now()
-    setProjects(prev => [...prev, { id, name: 'New Project', color: '#7133AE' }])
+    const id      = Date.now()
+    const project = { id, name: 'New Project', color: '#7133AE' }
+    setProjects(prev => [...prev, project])
+    fsSaveProject(currentUser?.uid, project)   // persist to Firestore
     return id
   }
 
-  const handleRenameProject = (id, newName) =>
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, name: newName } : p))
+  const handleRenameProject = (id, newName) => {
+    setProjects(prev => prev.map(p => {
+      if (p.id !== id) return p
+      const updated = { ...p, name: newName }
+      fsSaveProject(currentUser?.uid, updated)  // persist rename
+      return updated
+    }))
+    // Also update projectName on all meetings that belong to this project
+    setMeetings(prev => prev.map(m => {
+      if (m.projectId !== id) return m
+      const updated = { ...m, projectName: newName }
+      fsSaveMeeting(currentUser?.uid, updated)
+      return updated
+    }))
+  }
 
   const handleDeleteProject = (id) => {
+    // Capture the current meetings list before state update for Firestore batch delete
+    const currentMeetings = meetings
     setProjects(prev => prev.filter(p => p.id !== id))
     setMeetings(prev => prev.filter(m => m.projectId !== id))
+    fsDeleteProject(currentUser?.uid, id, currentMeetings)  // delete from Firestore
     if (activeProjectId === id) navToDashboard()
   }
 
@@ -1116,6 +1229,26 @@ export default function App() {
 
   /* ── While Firebase checks the cached session — show nothing (avoids flash) ── */
   if (!authChecked) return null
+
+  /* ── Loading screen — shown while Firestore data is being fetched ── */
+  if (dataLoading) return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa', gap: 16,
+    }}>
+      {/* Spinner */}
+      <div style={{
+        width: 40, height: 40, borderRadius: '50%',
+        border: '3px solid #e5e7eb',
+        borderTopColor: '#7133AE',
+        animation: 'spin 0.75s linear infinite',
+      }} />
+      <p style={{ color: '#6b7280', fontSize: 14, fontFamily: 'Inter, sans-serif' }}>
+        Loading your workspace…
+      </p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
 
   return (
     <>
