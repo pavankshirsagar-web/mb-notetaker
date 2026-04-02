@@ -223,9 +223,11 @@ export default function App() {
   const [sysAudioLoading,    setSysAudioLoading]    = useState(false)
 
   /* ── Document PiP overlay ── */
-  const [pipOpen,    setPipOpen]  = useState(false)
-  const pipWindowRef = useRef(null)
-  const pageRef      = useRef('login')   // always-current page, safe inside event closures
+  const [pipOpen,        setPipOpen]      = useState(false)
+  const pipWindowRef     = useRef(null)
+  const pageRef          = useRef('login') // always-current page, safe inside closures
+  const pipOpeningRef    = useRef(false)   // true while requestWindow() is pending
+  const pipUserClosedRef = useRef(false)   // true when user manually clicks X on PiP
 
   /* ── Real-time waveform heights (0-255 per bar, driven by AnalyserNode) ── */
   const [waveHeights, setWaveHeights] = useState(Array(20).fill(0))
@@ -963,30 +965,67 @@ export default function App() {
   ────────────────────────────────────────────────────────────────────────── */
   const openPiP = async () => {
     if (!window.documentPictureInPicture) return
-    if (pipWindowRef.current) return
+    if (pipWindowRef.current)  return  // already open
+    if (pipOpeningRef.current) return  // request already in-flight
+    pipOpeningRef.current = true
     try {
-      const pipWin = await window.documentPictureInPicture.requestWindow({
-        width: 230, height: 120,
-        disallowReturnToOpener: false,
-      })
-      pipWin.document.documentElement.style.cssText = 'margin:0;padding:0;width:100%;height:100%;'
+      // Chrome briefly keeps the old PiP window alive after .close() is called.
+      // Retry up to 5× (150 ms apart) to handle that race — stays well within
+      // Chrome's 5-second visibilitychange activation window.
+      let pipWin = null
+      for (let attempt = 0; attempt < 5; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 150))
+        try {
+          pipWin = await window.documentPictureInPicture.requestWindow({
+            width: 244, height: 58,
+            disallowReturnToOpener: false,
+          })
+          break  // success
+        } catch (e) {
+          if (e.name !== 'InvalidStateError') {
+            console.warn('PiP open failed:', e.name, e.message)
+            return
+          }
+          // InvalidStateError = previous window still closing → retry
+        }
+      }
+      if (!pipWin) return
+
+      pipWin.document.documentElement.style.cssText =
+        'margin:0;padding:0;width:100%;height:100%;box-sizing:border-box;'
       pipWin.document.body.style.cssText =
-        'margin:0;padding:0;width:100%;height:100%;overflow:hidden;' +
+        'margin:0;padding:0;width:100%;height:100%;overflow:hidden;box-sizing:border-box;' +
         'background:linear-gradient(135deg,#1E1130 0%,#150C26 100%);' +
         'display:flex;align-items:center;justify-content:center;'
       ;[...document.querySelectorAll('link[rel=stylesheet],style')].forEach(el => {
         try { pipWin.document.head.appendChild(el.cloneNode(true)) } catch (_) {}
       })
-      pipWin.addEventListener('pagehide', () => { pipWindowRef.current = null; setPipOpen(false) })
+
+      pipWin.addEventListener('pagehide', () => {
+        // pipWindowRef is nulled by closePiP() BEFORE .close() is called.
+        // If it is still set here, the user clicked X — not our code.
+        if (pipWindowRef.current !== null) {
+          pipUserClosedRef.current = true  // block auto-reopen for this session
+          pipWindowRef.current = null
+          window.focus()                   // return user to transcription tab
+        }
+        setPipOpen(false)
+      })
+
       pipWindowRef.current = pipWin
       setPipOpen(true)
-    } catch (e) { console.warn('PiP open failed:', e.name, e.message) }
+    } finally {
+      pipOpeningRef.current = false
+    }
   }
 
+  // Null pipWindowRef BEFORE calling .close() so the pagehide handler knows
+  // this was a code-initiated close (not the user clicking X).
   const closePiP = () => {
-    try { pipWindowRef.current?.close() } catch (_) {}
-    pipWindowRef.current = null
+    const win = pipWindowRef.current
+    pipWindowRef.current = null   // ← before .close()
     setPipOpen(false)
+    try { win?.close() } catch (_) {}
   }
 
   /* ── Visibility-based PiP — the Google Meet pattern ─────────────────────
@@ -999,10 +1038,10 @@ export default function App() {
     const onVisibility = async () => {
       if (!isRecordingRef.current) return
       if (document.hidden) {
-        // User left this tab / switched to another app
-        if (!pipWindowRef.current) await openPiP()
+        // User left tab/app — open PiP unless they manually closed it this session
+        if (!pipWindowRef.current && !pipUserClosedRef.current) await openPiP()
       } else {
-        // User returned to this tab — close PiP only if on transcription screen
+        // User returned to this tab — close PiP if on transcription screen
         if (pageRef.current === 'dashboard') closePiP()
       }
     }
@@ -1025,12 +1064,12 @@ export default function App() {
   const navToProject = (id) => {
     setActiveProjectId(id)
     setPage('project')
-    if (isRecordingRef.current && !pipWindowRef.current) openPiP()
+    if (isRecordingRef.current && !pipWindowRef.current && !pipUserClosedRef.current) openPiP()
   }
   const navToMeeting = (id) => {
     setActiveMeetingId(id)
     setPage('meeting')
-    if (isRecordingRef.current && !pipWindowRef.current) openPiP()
+    if (isRecordingRef.current && !pipWindowRef.current && !pipUserClosedRef.current) openPiP()
   }
   const navToDashboard = () => setPage('dashboard')
 
@@ -1129,8 +1168,9 @@ export default function App() {
     currentSpeaker.current = 0
     speakerEnergy.current  = { micSum: 0, sysSum: 0, n: 0 }
     setRecProject(project)
-    isRecordingRef.current = true   // sync immediately — don't wait for React render
-    isPausedRef.current    = false  // sync immediately
+    isRecordingRef.current   = true   // sync immediately — don't wait for React render
+    isPausedRef.current      = false  // sync immediately
+    pipUserClosedRef.current = false  // new recording → allow PiP to auto-open again
     setIsRecording(true)
     setIsPaused(false)
     setRecSeconds(0)
