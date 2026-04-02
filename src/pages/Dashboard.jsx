@@ -130,17 +130,27 @@ function fmt(s) {
 /* ─────────────────────────────────────────────
    ANIMATED WAVEFORM
 ───────────────────────────────────────────── */
-const REC_DELAYS  = [0,.15,.3,.08,.22,.38,.05,.18,.33,.42,.12,.28,.04,.2,.35,.1,.25,.4,.07,.3]
-const REC_HEIGHTS = [32,48,24,56,40,64,36,52,28,44,60,38,50,26,46,42,58,32,54,36]
+/* Maps a raw analyser value (0-255) to a pixel height in the waveform container.
+   Container is h-16 (64px); we clamp between 4 px (silence) and 56 px (peak). */
+const toBarHeight = (v) => Math.max(4, Math.round(4 + (v / 255) * 52))
 
-function AnimatedWaveform({ isPaused }) {
+function AnimatedWaveform({ isPaused, waveHeights }) {
+  /* Fallback: if no real data yet show a flat baseline of 4 px bars */
+  const heights = waveHeights ?? Array(20).fill(0)
   return (
     <div className="flex items-end justify-center gap-[5px] h-16">
-      {REC_HEIGHTS.map((h, i) => (
+      {heights.map((v, i) => (
         <span
           key={i}
-          className={`wave-bar${isPaused ? ' paused' : ''}`}
-          style={{ height: h, animationDelay: `${REC_DELAYS[i]}s`, opacity: 0.55 + (i % 4) * 0.12 }}
+          style={{
+            display: 'inline-block',
+            width: 4,
+            borderRadius: 3,
+            height: toBarHeight(v),
+            background: isPaused ? 'rgba(113,51,174,0.35)' : 'rgba(113,51,174,0.75)',
+            transition: 'height 80ms ease-out, background 300ms',
+            opacity: 0.6 + (i % 4) * 0.1,
+          }}
         />
       ))}
     </div>
@@ -381,6 +391,7 @@ export default function Dashboard({
   onDeleteProject,
   currentUser = null,
   onSignOut,
+  waveHeights = null,
 }) {
   const [showModal,    setShowModal]    = useState(false)
   const [isCtaPressed, setIsCtaPressed] = useState(false)
@@ -673,7 +684,7 @@ export default function Dashboard({
 
         {/* ROW 2 — Waveform + Controls */}
         <div className="flex-shrink-0 flex flex-col items-center justify-center gap-4 py-6 px-6">
-          <AnimatedWaveform isPaused={isPaused} />
+          <AnimatedWaveform isPaused={isPaused} waveHeights={waveHeights} />
 
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
