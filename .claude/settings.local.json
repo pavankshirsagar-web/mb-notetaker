@@ -41,7 +41,12 @@
       "Bash(dir \"C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\node_modules\\\\firebase\")",
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker && npm install firebase\")",
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker && npm list firebase 2>&1\")",
-      "Bash(cmd /c \"mkdir C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\src\\\\lib\")"
+      "Bash(cmd /c \"mkdir C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\src\\\\lib\")",
+      "Bash(node_modules/.bin/vite build:*)",
+      "Bash(node node_modules/vite/bin/vite.js build)",
+      "Bash(powershell -Command \"cd ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker''; node -e ''console.log\\(\"\"node ok\"\"\\)'' 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker''; npm run build 2>&1 | Out-String\")",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker''; Get-Content src/components/Sidebar.jsx | Select-String ''onCreate'' | Out-String\")"
     ]
   }
 }
