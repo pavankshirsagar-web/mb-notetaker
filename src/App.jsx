@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import PiPWidget          from './components/PiPWidget'
 import RecordingSetupModal from './components/RecordingSetupModal'
-import LoginPage    from './pages/LoginPage'
-import Dashboard    from './pages/Dashboard'
-import ProjectPage  from './pages/ProjectPage'
-import MeetingDetail from './pages/MeetingDetail'
+import LoginPage           from './pages/LoginPage'
+import Dashboard           from './pages/Dashboard'
+import ProjectPage         from './pages/ProjectPage'
+import MeetingDetail       from './pages/MeetingDetail'
+import WorkspacePageEditor from './pages/WorkspacePageEditor'
 import { listenAuthState, signOutUser, firebaseConfigured, db } from './lib/firebase'
 import {
   collection, doc, getDocs, setDoc, deleteDoc, writeBatch,
@@ -187,6 +188,11 @@ export default function App() {
   const [activeProjectId, setActiveProjectId] = useState(null)
   const [activeMeetingId, setActiveMeetingId] = useState(null)
 
+  /* ── Workspace state ── */
+  const [workspaceFolders,        setWorkspaceFolders]        = useState([])
+  const [workspacePages,          setWorkspacePages]          = useState([])
+  const [activeWorkspacePageId,   setActiveWorkspacePageId]   = useState(null)
+
   /* ── Recording state ── */
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused,    setIsPaused]    = useState(false)
@@ -272,9 +278,11 @@ export default function App() {
     if (!db) return
     setDataLoading(true)
     try {
-      const [projSnap, meetSnap] = await Promise.all([
+      const [projSnap, meetSnap, wfSnap, wpSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'projects')),
         getDocs(collection(db, 'users', uid, 'meetings')),
+        getDocs(collection(db, 'users', uid, 'workspaceFolders')),
+        getDocs(collection(db, 'users', uid, 'workspacePages')),
       ])
 
       const loadedProjects = projSnap.docs.map(d => d.data())
@@ -295,6 +303,10 @@ export default function App() {
       // Sort newest-first (meeting IDs are timestamp strings)
       loadedMeetings.sort((a, b) => b.id.localeCompare(a.id))
       setMeetings(loadedMeetings)
+
+      // Load workspace
+      setWorkspaceFolders(wfSnap.docs.map(d => d.data()))
+      setWorkspacePages(wpSnap.docs.map(d => d.data()))
     } catch (e) {
       console.error('[Firestore] loadUserData failed:', e)
     } finally {
@@ -338,6 +350,37 @@ export default function App() {
       .catch(e => console.error('[Firestore] deleteMeeting failed:', e))
   }
 
+  /* ── Workspace Firestore helpers ─────────────────────────────────────────── */
+  const fsSaveWorkspaceFolder = (uid, folder) => {
+    if (!db || !uid) return
+    setDoc(doc(db, 'users', uid, 'workspaceFolders', String(folder.id)), folder)
+      .catch(e => console.error('[Firestore] saveWorkspaceFolder failed:', e))
+  }
+
+  const fsDeleteWorkspaceFolder = async (uid, folderId, pagesList) => {
+    if (!db || !uid) return
+    try {
+      const batch = writeBatch(db)
+      batch.delete(doc(db, 'users', uid, 'workspaceFolders', String(folderId)))
+      pagesList
+        .filter(p => p.folderId === folderId)
+        .forEach(p => batch.delete(doc(db, 'users', uid, 'workspacePages', String(p.id))))
+      await batch.commit()
+    } catch (e) { console.error('[Firestore] deleteWorkspaceFolder failed:', e) }
+  }
+
+  const fsSaveWorkspacePage = (uid, page) => {
+    if (!db || !uid) return
+    setDoc(doc(db, 'users', uid, 'workspacePages', String(page.id)), page)
+      .catch(e => console.error('[Firestore] saveWorkspacePage failed:', e))
+  }
+
+  const fsDeleteWorkspacePage = (uid, pageId) => {
+    if (!db || !uid) return
+    deleteDoc(doc(db, 'users', uid, 'workspacePages', String(pageId)))
+      .catch(e => console.error('[Firestore] deleteWorkspacePage failed:', e))
+  }
+
   /* ── Firebase auth state ────────────────────────────────────────────────────
      onAuthStateChanged fires once immediately with the cached user (or null),
      then again whenever login / logout happens.
@@ -359,6 +402,9 @@ export default function App() {
         setMeetings([])
         setActiveProjectId(null)
         setActiveMeetingId(null)
+        setWorkspaceFolders([])
+        setWorkspacePages([])
+        setActiveWorkspacePageId(null)
       }
     })
     return unsubscribe
@@ -1034,6 +1080,12 @@ export default function App() {
   }
   const navToDashboard = () => setPage('dashboard')
 
+  /* ── Workspace page navigation ── */
+  const navToWorkspacePage = (id) => {
+    setActiveWorkspacePageId(id)
+    setPage('workspacePage')
+  }
+
   /* ── Meeting helpers ── */
   const buildMeeting = () => ({
     id:          Date.now().toString(),
@@ -1193,12 +1245,31 @@ export default function App() {
     fsSaveMeeting(currentUser?.uid, updated)   // persist edits (title, summary, etc.)
   }
 
+  const handleDeleteMeeting = (id) => {
+    setMeetings(prev => prev.filter(m => m.id !== id))
+    fsDeleteMeeting(currentUser?.uid, id)
+  }
+
+  const handleDeleteWorkspacePage = (id) => {
+    setWorkspacePages(prev => prev.filter(p => p.id !== id))
+    fsDeleteWorkspacePage(currentUser?.uid, id)
+  }
+
   const handleCreateProject = () => {
     const id      = Date.now()
     const project = { id, name: 'New Project', color: '#7133AE' }
     setProjects(prev => [...prev, project])
     fsSaveProject(currentUser?.uid, project)   // persist to Firestore
     return id
+  }
+
+  const handleUpdateProjectDescription = (id, description) => {
+    setProjects(prev => prev.map(p => {
+      if (p.id !== id) return p
+      const updated = { ...p, description }
+      fsSaveProject(currentUser?.uid, updated)
+      return updated
+    }))
   }
 
   const handleRenameProject = (id, newName) => {
@@ -1226,10 +1297,60 @@ export default function App() {
     if (activeProjectId === id) navToDashboard()
   }
 
-  const activeProject   = projects.find(p => p.id === activeProjectId)
-  const activeMeeting   = meetings.find(m => m.id === activeMeetingId)
-  const projectMeetings = meetings.filter(m => m.projectId === activeProjectId)
+  /* ── Workspace handlers ────────────────────────────────────────────────────── */
+  /** Called from WorkspaceTab inside ProjectPage — projectId is the active project */
+  const handleCreateWorkspaceFolder = () => {
+    const id     = Date.now()
+    const folder = { id, projectId: activeProjectId, name: 'New Folder', createdAt: new Date().toISOString() }
+    setWorkspaceFolders(prev => [...prev, folder])
+    fsSaveWorkspaceFolder(currentUser?.uid, folder)
+    return id
+  }
 
+  const handleRenameWorkspaceFolder = (id, newName) => {
+    setWorkspaceFolders(prev => prev.map(f => {
+      if (f.id !== id) return f
+      const updated = { ...f, name: newName }
+      fsSaveWorkspaceFolder(currentUser?.uid, updated)
+      return updated
+    }))
+  }
+
+  const handleDeleteWorkspaceFolder = (id) => {
+    const currentPages = workspacePages
+    setWorkspaceFolders(prev => prev.filter(f => f.id !== id))
+    setWorkspacePages(prev => prev.filter(p => p.folderId !== id))
+    fsDeleteWorkspaceFolder(currentUser?.uid, id, currentPages)
+  }
+
+  /** folderId is passed from WorkspaceTab when user clicks "New Page" inside a folder */
+  const handleCreateWorkspacePage = (folderId) => {
+    const id   = Date.now()
+    const pg   = {
+      id,
+      folderId,
+      projectId: activeProjectId,
+      title:     'Untitled',
+      content:   '',
+      updatedAt: new Date().toISOString(),
+    }
+    setWorkspacePages(prev => [...prev, pg])
+    fsSaveWorkspacePage(currentUser?.uid, pg)
+    return id
+  }
+
+  const handleUpdateWorkspacePage = (updated) => {
+    setWorkspacePages(prev => prev.map(p => p.id === updated.id ? updated : p))
+    fsSaveWorkspacePage(currentUser?.uid, updated)
+  }
+
+  const activeProject       = projects.find(p => p.id === activeProjectId)
+  const activeMeeting       = meetings.find(m => m.id === activeMeetingId)
+  const projectMeetings     = meetings.filter(m => m.projectId === activeProjectId)
+  const activeWorkspacePage = workspacePages.find(p => p.id === activeWorkspacePageId)
+  const activeWorkspaceFolder = activeWorkspacePage
+    ? workspaceFolders.find(f => f.id === activeWorkspacePage.folderId)
+    : null
 
   /* ── While Firebase checks the cached session — show nothing (avoids flash) ── */
   if (!authChecked) return null
@@ -1309,6 +1430,17 @@ export default function App() {
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
+          onUpdateDescription={handleUpdateProjectDescription}
+          workspaceFolders={workspaceFolders}
+          workspacePages={workspacePages}
+          onCreateWorkspaceFolder={handleCreateWorkspaceFolder}
+          onRenameWorkspaceFolder={handleRenameWorkspaceFolder}
+          onDeleteWorkspaceFolder={handleDeleteWorkspaceFolder}
+          onNavigateToWorkspacePage={navToWorkspacePage}
+          onCreateWorkspacePage={handleCreateWorkspacePage}
+          onUpdateWorkspacePage={handleUpdateWorkspacePage}
+          onDeleteMeeting={handleDeleteMeeting}
+          onDeleteWorkspacePage={handleDeleteWorkspacePage}
           currentUser={currentUser}
           onSignOut={signOutUser}
         />
@@ -1329,6 +1461,24 @@ export default function App() {
           currentUser={currentUser}
           onSignOut={signOutUser}
           waveHeights={waveHeights}
+        />
+      )}
+
+      {page === 'workspacePage' && (
+        <WorkspacePageEditor
+          page={activeWorkspacePage}
+          folder={activeWorkspaceFolder}
+          project={activeProject}
+          projects={projects}
+          onBack={() => navToProject(activeProjectId)}
+          onUpdatePage={handleUpdateWorkspacePage}
+          onNavigateToProject={navToProject}
+          onNavigateToDashboard={navToDashboard}
+          onCreateProject={handleCreateProject}
+          onRenameProject={handleRenameProject}
+          onDeleteProject={handleDeleteProject}
+          currentUser={currentUser}
+          onSignOut={signOutUser}
         />
       )}
 

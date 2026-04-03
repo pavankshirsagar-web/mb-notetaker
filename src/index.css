@@ -122,3 +122,133 @@ body {
 .setup-section {
   animation: fadeUp 0.3s ease-out both;
 }
+
+/* Workspace folder nav — thin, low-contrast scrollbar */
+.workspace-folder-nav {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.workspace-folder-nav:hover {
+  scrollbar-color: rgba(0,0,0,0.10) transparent;
+}
+.workspace-folder-nav::-webkit-scrollbar {
+  width: 3px;
+}
+.workspace-folder-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.workspace-folder-nav::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 99px;
+}
+.workspace-folder-nav:hover::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.10);
+}
+
+/* ── Tiptap rich-text editor styles ─────────────────────────────────────── */
+.tiptap-editor .tiptap {
+  outline: none;
+  min-height: 400px;
+  color: #1f2937;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+/* Placeholder */
+.tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #d1d5db;
+  pointer-events: none;
+  float: left;
+  height: 0;
+  font-style: italic;
+}
+
+/* Headings */
+.tiptap-editor .tiptap h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 1.5rem 0 0.5rem;
+  line-height: 1.3;
+}
+.tiptap-editor .tiptap h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 1.25rem 0 0.4rem;
+  line-height: 1.35;
+}
+.tiptap-editor .tiptap h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 1rem 0 0.35rem;
+  line-height: 1.4;
+}
+
+/* Paragraph */
+.tiptap-editor .tiptap p {
+  margin: 0.35rem 0;
+}
+
+/* Bold / italic / underline / strike */
+.tiptap-editor .tiptap strong { font-weight: 700; }
+.tiptap-editor .tiptap em     { font-style: italic; }
+.tiptap-editor .tiptap u      { text-decoration: underline; }
+.tiptap-editor .tiptap s      { text-decoration: line-through; }
+
+/* Inline code */
+.tiptap-editor .tiptap code {
+  background: #f3f4f6;
+  color: #7133AE;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.88em;
+}
+
+/* Code block */
+.tiptap-editor .tiptap pre {
+  background: #1e1b2e;
+  color: #e2d9f3;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.88em;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+.tiptap-editor .tiptap pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Blockquote */
+.tiptap-editor .tiptap blockquote {
+  border-left: 3px solid #7133AE;
+  margin: 0.75rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Horizontal rule */
+.tiptap-editor .tiptap hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1.5rem 0;
+}
+
+/* Lists */
+.tiptap-editor .tiptap ul,
+.tiptap-editor .tiptap ol {
+  padding-left: 1.5rem;
+  margin: 0.35rem 0;
+}
+.tiptap-editor .tiptap ul { list-style-type: disc; }
+.tiptap-editor .tiptap ol { list-style-type: decimal; }
+.tiptap-editor .tiptap li { margin: 0.15rem 0; }
+.tiptap-editor .tiptap li p { margin: 0; }

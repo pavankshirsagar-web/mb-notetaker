@@ -149,27 +149,24 @@ export default function Sidebar({
         {/* Section 2 — Projects */}
         <div className="flex-1 flex flex-col overflow-hidden px-3 py-4">
 
-          {/* ── Fixed top: label + New Project + search ── */}
+          {/* ── Fixed top: label + New Project on same row + search ── */}
           <div className="flex-shrink-0">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-2 mb-2 block">
-              Projects
-            </span>
-
-            {/* New Project button */}
-            <button
-              onClick={handleNewProject}
-              className="group flex items-center gap-2.5 px-2 py-2.5 rounded-lg text-left w-full transition-all duration-150 cursor-pointer hover:bg-gray-50 mb-1"
-            >
-              <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
-                <Plus size={13} strokeWidth={2.5} className="text-gray-400" />
-              </div>
-              <span className="text-sm font-medium flex-1 truncate text-gray-500 group-hover:text-gray-700 transition-colors">
-                New Project
+            <div className="flex items-center justify-between px-3 mb-4">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+                Projects
               </span>
-            </button>
+              <button
+                onClick={handleNewProject}
+                className="flex items-center gap-1 text-xs font-medium cursor-pointer transition-colors hover:opacity-80"
+                style={{ color: '#7133AE' }}
+              >
+                <Plus size={12} strokeWidth={2.5} />
+                New Project
+              </button>
+            </div>
 
             {/* Search */}
-            <div className="relative mb-2">
+            <div className="relative mb-4">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
@@ -209,7 +206,7 @@ export default function Sidebar({
                 >
                   <button
                     onClick={() => { if (!isRenaming) onNavigateToProject?.(project.id) }}
-                    className="flex items-center gap-2.5 px-2 py-2.5 rounded-lg text-left w-full transition-all duration-150 cursor-pointer"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left w-full transition-all duration-150 cursor-pointer"
                     style={{
                       backgroundColor: isActive ? '#7133AE0F' : isHovered || menuOpen ? '#f9fafb' : 'transparent',
                     }}
@@ -279,7 +276,7 @@ export default function Sidebar({
 
         {/* Section 3 — Bottom: User profile + sign out */}
         <div className="border-t border-gray-100 px-3 py-4">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg group">
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg group">
 
             {/* Avatar — photo if available, else initials */}
             {currentUser?.photoURL ? (
