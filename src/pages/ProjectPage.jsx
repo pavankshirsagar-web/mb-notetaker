@@ -1675,8 +1675,7 @@ function TodoTab({ meetings, projectId }) {
             done:      false,
             source:    'ai',
             meetingId: m.id,
-            owner:     item.owner || '',
-            due:       item.due   || '',
+            due:       item.due   || '',   // owner intentionally omitted — tasks belong to the user
           }))
           .filter(t => !existIds.has(t.id))
         next[dk] = [...existing, ...aiTasks]
@@ -1849,21 +1848,11 @@ function TodoTab({ meetings, projectId }) {
                       </p>
                     )}
 
-                    {/* AI-sourced metadata: owner + due date */}
-                    {task.source === 'ai' && (task.owner || (task.due && task.due !== 'TBD')) && (
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        {task.owner && (
-                          <span className="text-xs text-gray-400 flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-gray-300 inline-block" />
-                            {task.owner}
-                          </span>
-                        )}
-                        {task.due && task.due !== 'TBD' && (
-                          <span className="text-xs text-gray-400 flex items-center gap-1">
-                            <Clock size={10} strokeWidth={2} />
-                            {task.due}
-                          </span>
-                        )}
+                    {/* Due date only — no owner/speaker tags */}
+                    {task.source === 'ai' && task.due && task.due !== 'TBD' && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Clock size={10} strokeWidth={2} className="text-gray-300" />
+                        <span className="text-xs text-gray-400">{task.due}</span>
                       </div>
                     )}
                   </div>
