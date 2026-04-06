@@ -72,7 +72,8 @@
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker && if exist components.json \\(echo FOUND\\) else \\(echo NOT_FOUND\\)\")",
       "Bash(cmd /c \"cd /d \"\"C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\"\" && dir components.json 2>&1 && echo DONE\")",
       "Bash(dir \"C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\node_modules\" /b)",
-      "Bash(findstr radix:*)"
+      "Bash(findstr radix:*)",
+      "Bash(node -e \"const pkg = require\\(''C:/Users/pavan.kshirsagar/Desktop/AI Notetaker/node_modules/lucide-react/package.json''\\); console.log\\(pkg.version\\)\")"
     ]
   }
 }

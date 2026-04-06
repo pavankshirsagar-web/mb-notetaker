@@ -1366,6 +1366,41 @@ export default function App() {
     fsSaveWorkspacePage(currentUser?.uid, updated)
   }
 
+  /** Find-or-create the protected "Daily Summary" system folder for the active project */
+  const handleEnsureDailySummaryFolder = () => {
+    const existing = workspaceFolders.find(
+      f => f.projectId === activeProjectId && f.isSystemFolder === true
+    )
+    if (existing) return existing.id
+    const id     = Date.now()
+    const folder = {
+      id,
+      projectId:      activeProjectId,
+      name:           'Daily Summary',
+      isSystemFolder: true,
+      createdAt:      new Date().toISOString(),
+    }
+    setWorkspaceFolders(prev => [folder, ...prev])   // always first
+    fsSaveWorkspaceFolder(currentUser?.uid, folder)
+    return id
+  }
+
+  /** Create a workspace page with pre-filled title + content (used by day summary store) */
+  const handleCreatePageWithContent = (folderId, title, content) => {
+    const id = Date.now()
+    const pg = {
+      id,
+      folderId,
+      projectId: activeProjectId,
+      title,
+      content,
+      updatedAt: new Date().toISOString(),
+    }
+    setWorkspacePages(prev => [...prev, pg])
+    fsSaveWorkspacePage(currentUser?.uid, pg)
+    return id
+  }
+
   const activeProject       = projects.find(p => p.id === activeProjectId)
   const activeMeeting       = meetings.find(m => m.id === activeMeetingId)
   const projectMeetings     = meetings.filter(m => m.projectId === activeProjectId)
@@ -1461,6 +1496,8 @@ export default function App() {
           onNavigateToWorkspacePage={navToWorkspacePage}
           onCreateWorkspacePage={handleCreateWorkspacePage}
           onUpdateWorkspacePage={handleUpdateWorkspacePage}
+          onEnsureDailySummaryFolder={handleEnsureDailySummaryFolder}
+          onCreatePageWithContent={handleCreatePageWithContent}
           onDeleteMeeting={handleDeleteMeeting}
           onDeleteWorkspacePage={handleDeleteWorkspacePage}
           currentUser={currentUser}
