@@ -10,7 +10,8 @@ import {
   GripVertical, ChevronDown,
   AlignLeft, AlignCenter, AlignRight,
   ExternalLink, FileText as FileIcon, Download, Paperclip,
-  Type,
+  Type, Square, SquareCheck, ListTodo,
+  BookOpen, Sparkles, Lock, FolderLock, Store, Save,
 } from 'lucide-react'
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
@@ -1047,6 +1048,7 @@ function WorkspaceTab({
   }
 
   const handleDeleteFolder = () => {
+    if (!deleteTarget || deleteTarget.isSystemFolder) return  // system folder is protected
     if (selectedPageId && pages.find(p => p.id === selectedPageId)?.folderId === deleteTarget.id) {
       setSelectedPageId(null)
     }
@@ -1056,9 +1058,14 @@ function WorkspaceTab({
 
   const activeMenu    = openMenuId ? folders.find(f => f.id === openMenuId) : null
   const selectedPage  = selectedPageId ? pages.find(p => p.id === selectedPageId) : null
-  const filteredFolders = folders.filter(f =>
-    f.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredFolders = folders
+    .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      // System folder (Daily Summary) always first
+      if (a.isSystemFolder && !b.isSystemFolder) return -1
+      if (!a.isSystemFolder && b.isSystemFolder) return  1
+      return 0
+    })
 
   return (
     <div className="flex h-full">
@@ -1117,9 +1124,11 @@ function WorkspaceTab({
             const isHovered  = hoveredId === folder.id
             const folderPages = pages.filter(p => p.folderId === folder.id)
 
+            const isSystem = !!folder.isSystemFolder
+
             return (
               <div key={folder.id} >
-                {/* Folder row — same layout as sidebar project rows */}
+                {/* Folder row */}
                 <div
                   className="relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-150 select-none"
                   style={{
@@ -1137,8 +1146,15 @@ function WorkspaceTab({
                       color: isExpanded ? '#7133AE' : '#9ca3af',
                     }}
                   />
-                  <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
-                    <FolderOpen size={13} strokeWidth={2} style={{ color: isExpanded ? '#7133AE' : '#9ca3af' }} />
+                  {/* Folder icon — lock variant for system folder */}
+                  <div
+                    className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: isSystem ? '#7133AE12' : '#f3f4f6' }}
+                  >
+                    {isSystem
+                      ? <BookOpen size={12} strokeWidth={2} style={{ color: '#7133AE' }} />
+                      : <FolderOpen size={13} strokeWidth={2} style={{ color: isExpanded ? '#7133AE' : '#9ca3af' }} />
+                    }
                   </div>
 
                   {isRenaming ? (
@@ -1164,26 +1180,35 @@ function WorkspaceTab({
                     </span>
                   )}
 
-                  {!isRenaming && (isHovered || menuOpen) && (
-                    <button
-                      onClick={(e) => openMenu(e, folder.id)}
-                      className="flex items-center justify-center w-5 h-5 rounded transition-colors cursor-pointer flex-shrink-0"
-                      style={{
-                        backgroundColor: menuOpen ? '#f3e8ff' : 'transparent',
-                        color: menuOpen ? '#7133AE' : 'rgba(107,114,128,0.7)',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3e8ff'; e.currentTarget.style.color = '#7133AE' }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = menuOpen ? '#f3e8ff' : 'transparent'
-                        e.currentTarget.style.color = menuOpen ? '#7133AE' : 'rgba(107,114,128,0.7)'
-                      }}
-                    >
-                      <MoreHorizontal size={13} />
-                    </button>
+                  {/* System folder: show lock pill; normal folder: show ⋯ on hover */}
+                  {isSystem ? (
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0"
+                      style={{ backgroundColor: '#7133AE12', color: '#7133AE' }}>
+                      <Lock size={8} strokeWidth={2.5} />
+                      Auto
+                    </span>
+                  ) : (
+                    !isRenaming && (isHovered || menuOpen) && (
+                      <button
+                        onClick={(e) => openMenu(e, folder.id)}
+                        className="flex items-center justify-center w-5 h-5 rounded transition-colors cursor-pointer flex-shrink-0"
+                        style={{
+                          backgroundColor: menuOpen ? '#f3e8ff' : 'transparent',
+                          color: menuOpen ? '#7133AE' : 'rgba(107,114,128,0.7)',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3e8ff'; e.currentTarget.style.color = '#7133AE' }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = menuOpen ? '#f3e8ff' : 'transparent'
+                          e.currentTarget.style.color = menuOpen ? '#7133AE' : 'rgba(107,114,128,0.7)'
+                        }}
+                      >
+                        <MoreHorizontal size={13} />
+                      </button>
+                    )
                   )}
                 </div>
 
-                {/* Pages nested under folder (accordion — only this folder) */}
+                {/* Pages nested under folder */}
                 {isExpanded && (
                   <div className="ml-[40px] mb-2 mt-2">
                     {folderPages.map(pg => {
@@ -1191,7 +1216,7 @@ function WorkspaceTab({
                       return (
                         <div
                           key={pg.id}
-                          className="group flex items-center gap-2 px-2 py-1.5 mb-2  rounded-lg cursor-pointer transition-colors"
+                          className="group flex items-center gap-2 px-2 py-1.5 mb-2 rounded-lg cursor-pointer transition-colors"
                           style={{ backgroundColor: isSelected ? '#7133AE0F' : 'transparent' }}
                           onClick={() => setSelectedPageId(pg.id)}
                           onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f9fafb' }}
@@ -1201,24 +1226,29 @@ function WorkspaceTab({
                           <span className="flex-1 text-xs font-medium truncate transition-colors" style={{ color: isSelected ? '#7133AE' : '#6b7280' }}>
                             {pg.title || 'Untitled'}
                           </span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setDeletePageTarget(pg) }}
-                            className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded transition-colors hover:bg-red-50 cursor-pointer"
-                          >
-                            <Trash2 size={11} className="text-gray-300 hover:text-red-500 transition-colors" />
-                          </button>
+                          {/* No delete button for system folder pages */}
+                          {!isSystem && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeletePageTarget(pg) }}
+                              className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded transition-colors hover:bg-red-50 cursor-pointer opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 size={11} className="text-gray-300 hover:text-red-500 transition-colors" />
+                            </button>
+                          )}
                         </div>
                       )
                     })}
 
-                    {/* New Page row */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCreatePage(folder.id) }}
-                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer w-full text-left transition-colors hover:bg-gray-50"
-                    >
-                      <Plus size={11} strokeWidth={2.5} style={{ color: '#7133AE' }} />
-                      <span className="text-xs font-medium" style={{ color: '#7133AE' }}>New Page</span>
-                    </button>
+                    {/* New Page row — only for non-system folders */}
+                    {!isSystem && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleCreatePage(folder.id) }}
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer w-full text-left transition-colors hover:bg-gray-50"
+                      >
+                        <Plus size={11} strokeWidth={2.5} style={{ color: '#7133AE' }} />
+                        <span className="text-xs font-medium" style={{ color: '#7133AE' }}>New Page</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1315,6 +1345,592 @@ function WorkspaceTab({
 }
 
 /* ─────────────────────────────────────────────
+   DAY SUMMARY — helpers + modal
+───────────────────────────────────────────── */
+
+/** Format a dateKey (YYYY-MM-DD) → "Mon, 24 Apr 2026" (page title) */
+function formatPageDate(dateKey) {
+  const d = new Date(dateKey + 'T12:00:00')
+  return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/** Build a structured day summary object from an array of meetings */
+function buildDaySummary(meetings) {
+  const valid = meetings.filter(
+    m => m.summary && !m.summary._generating &&
+    (m.summary.objective || (m.summary.topicsDiscussed || []).length > 0)
+  )
+  if (!valid.length) return null
+
+  const clean = (title) => title.includes(' – ') ? title.split(' – ').slice(1).join(' – ') : title
+
+  return {
+    meetingCount:  valid.length,
+    meetings:      valid.map(m => ({ title: clean(m.title), time: m.time, duration: m.duration })),
+    objectives:    valid.map(m => m.summary.objective).filter(Boolean),
+    topics:        valid.flatMap(m => m.summary.topicsDiscussed || []),
+    insights:      valid.flatMap(m => m.summary.keyInsights     || []),
+    decisions:     valid.flatMap(m => m.summary.decisionsMade   || [])
+                       .filter(d => d && d !== 'No final decisions were made.'),
+    actionItems:   valid.flatMap(m => m.summary.actionItems     || []),
+  }
+}
+
+/** Generate Tiptap-compatible HTML for the workspace page */
+function buildDaySummaryHTML(dateKey, summary) {
+  const dateLabel = formatPageDate(dateKey)
+  let html = `<h1>${dateLabel} — Daily Summary</h1>`
+  html += `<p><strong>${summary.meetingCount} meeting${summary.meetingCount > 1 ? 's' : ''}</strong> held on this day.</p>`
+
+  // Meetings list
+  html += `<h2>Meetings</h2><ul>`
+  summary.meetings.forEach(m => { html += `<li>${m.title} · ${m.time} · ${m.duration}</li>` })
+  html += '</ul>'
+
+  // Overview
+  if (summary.objectives.length) {
+    html += `<h2>Overview</h2>`
+    summary.objectives.forEach(o => { html += `<p>${o}</p>` })
+  }
+
+  // Topics
+  if (summary.topics.length) {
+    html += `<h2>Topics Discussed</h2><ul>`
+    summary.topics.forEach(t => { html += `<li>${t}</li>` })
+    html += '</ul>'
+  }
+
+  // Insights
+  if (summary.insights.length) {
+    html += `<h2>Key Insights</h2><ul>`
+    summary.insights.forEach(i => { html += `<li>${i}</li>` })
+    html += '</ul>'
+  }
+
+  // Decisions
+  if (summary.decisions.length) {
+    html += `<h2>Decisions Made</h2><ul>`
+    summary.decisions.forEach(d => { html += `<li>${d}</li>` })
+    html += '</ul>'
+  }
+
+  // Action items
+  if (summary.actionItems.length) {
+    html += `<h2>Action Items</h2><ul>`
+    summary.actionItems.forEach(a => {
+      const meta = [a.owner, a.due && a.due !== 'TBD' ? `Due: ${a.due}` : ''].filter(Boolean).join(' · ')
+      html += `<li><strong>${a.task}</strong>${meta ? ` <em>(${meta})</em>` : ''}</li>`
+    })
+    html += '</ul>'
+  }
+
+  return html
+}
+
+/** Day Summary Modal */
+function DaySummaryModal({ dateKey, meetings, onClose, onStoreInWorkspace, storing, stored }) {
+  const summary    = buildDaySummary(meetings)
+  const generating = meetings.some(m => m.summary?._generating)
+  const dateLabel  = formatPageDate(dateKey)
+
+  const Section = ({ title, items }) => {
+    if (!items?.length) return null
+    return (
+      <div>
+        <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+          <span className="w-1 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: '#7133AE' }} />
+          {title}
+        </h3>
+        <ul className="space-y-1.5 pl-3">
+          {items.map((item, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-gray-600 leading-snug">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-purple-300 flex-shrink-0" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 flex-shrink-0 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: '#7133AE0F' }}>
+              <BookOpen size={18} strokeWidth={1.8} style={{ color: '#7133AE' }} />
+            </div>
+            <div>
+              <h2 className="text-gray-900 font-semibold text-base leading-tight">Day Summary</h2>
+              <p className="text-xs text-gray-400 mt-0.5">{dateLabel}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex-shrink-0"
+          >
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+          {/* No summaries yet */}
+          {!summary && !generating && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <Sparkles size={32} className="text-gray-200" strokeWidth={1.5} />
+              <p className="text-gray-500 font-medium text-sm">No AI summaries available yet.</p>
+              <p className="text-xs text-gray-400 max-w-xs leading-relaxed">
+                AI summaries are generated automatically after each recording ends. Once ready, they'll appear here.
+              </p>
+            </div>
+          )}
+
+          {/* Still generating */}
+          {generating && !summary && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <div className="w-8 h-8 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
+              <p className="text-sm text-gray-500">Generating summaries…</p>
+            </div>
+          )}
+
+          {/* Summary content */}
+          {summary && (
+            <>
+              {/* Meetings row */}
+              <div className="flex flex-wrap gap-2">
+                {summary.meetings.map((m, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
+                    style={{ backgroundColor: '#7133AE0A', color: '#5b21a6' }}>
+                    <Mic size={11} strokeWidth={2.5} />
+                    <span className="font-medium">{m.title}</span>
+                    <span className="opacity-60">{m.time} · {m.duration}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Overview */}
+              {summary.objectives.length > 0 && (
+                <div className="px-4 py-3 rounded-xl" style={{ backgroundColor: '#7133AE08', borderLeft: '3px solid #7133AE' }}>
+                  <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-1">What happened today</p>
+                  {summary.objectives.map((o, i) => (
+                    <p key={i} className="text-sm text-gray-700 leading-relaxed">{o}</p>
+                  ))}
+                </div>
+              )}
+
+              <Section title="Topics Discussed"  items={summary.topics} />
+              <Section title="Key Insights"      items={summary.insights} />
+              <Section title="Decisions Made"    items={summary.decisions} />
+
+              {/* Action items with owner+due */}
+              {summary.actionItems.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+                    <span className="w-1 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: '#7133AE' }} />
+                    Action Items
+                  </h3>
+                  <div className="space-y-2 pl-3">
+                    {summary.actionItems.map((a, i) => (
+                      <div key={i} className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-gray-50">
+                        <SquareCheck size={14} strokeWidth={2} className="text-purple-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-700 font-medium leading-snug">{a.task}</p>
+                          {(a.owner || (a.due && a.due !== 'TBD')) && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {[a.owner, a.due && a.due !== 'TBD' ? `Due: ${a.due}` : ''].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {generating && (
+                <p className="text-xs text-gray-400 text-center py-2">
+                  ⏳ Some recordings are still generating summaries — they'll be included when you store.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 flex-shrink-0 bg-gray-50">
+          <p className="text-xs text-gray-400 flex items-center gap-1.5">
+            <FolderLock size={12} strokeWidth={2} />
+            Saves to <span className="font-medium text-gray-500">Daily Summary</span> folder
+          </p>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+            <button
+              onClick={onStoreInWorkspace}
+              disabled={!summary || storing}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: stored ? '#16a34a' : '#7133AE' }}
+              onMouseEnter={(e) => { if (!stored && !storing) e.currentTarget.style.backgroundColor = '#5f2a94' }}
+              onMouseLeave={(e) => { if (!stored && !storing) e.currentTarget.style.backgroundColor = '#7133AE' }}
+            >
+              {storing ? (
+                <>
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  Storing…
+                </>
+              ) : stored ? (
+                <>
+                  <Check size={14} strokeWidth={2.5} />
+                  Stored!
+                </>
+              ) : (
+                <>
+                  <Save size={14} strokeWidth={2.5} />
+                  Store in Workspace
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+/* ─────────────────────────────────────────────
+   TODO TAB — day-wise tasks auto-derived from AI summaries + manual add
+───────────────────────────────────────────── */
+function TodoTab({ meetings, projectId }) {
+  /* Keys are strictly scoped to this project */
+  const storageKey = `todos_${projectId}`
+  const mergedKey  = `todos_merged_${projectId}`
+
+  const readTasks   = (key) => { try { return JSON.parse(localStorage.getItem(key) || '{}') } catch { return {} } }
+  const readMerged  = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } }
+
+  /* ── Persisted state — initialised from THIS project's storage ── */
+  const [tasks,          setTasks]          = useState(() => readTasks(storageKey))
+  const [mergedMeetings, setMergedMeetings] = useState(() => readMerged(mergedKey))
+
+  /* ── Local UI state ── */
+  const [addingDay,   setAddingDay]   = useState(null)
+  const [newTaskText, setNewTaskText] = useState('')
+  const [editingId,   setEditingId]   = useState(null)
+  const [editText,    setEditText]    = useState('')
+  const newTaskInputRef = useRef(null)
+
+  /* When project changes (projectId prop changes), reload from the new project's storage.
+     This is a safety net — the parent also adds key={project.id} to force remount,
+     but this useEffect handles any edge case where React reuses the instance. */
+  useEffect(() => {
+    setTasks(readTasks(storageKey))
+    setMergedMeetings(readMerged(mergedKey))
+    setAddingDay(null)
+    setNewTaskText('')
+    setEditingId(null)
+    setEditText('')
+  }, [projectId]) // eslint-disable-line
+
+  /* Persist whenever tasks / mergedMeetings change, always under the CURRENT project's key */
+  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(tasks))          }, [tasks,          storageKey])
+  useEffect(() => { localStorage.setItem(mergedKey,  JSON.stringify(mergedMeetings)) }, [mergedMeetings,  mergedKey])
+
+  /* Merge AI action items from recordings that haven't been processed yet */
+  useEffect(() => {
+    const toMerge = meetings.filter(m =>
+      !mergedMeetings.includes(m.id) &&
+      Array.isArray(m.summary?.actionItems) &&
+      m.summary.actionItems.length > 0 &&
+      !m.summary?._generating
+    )
+    if (!toMerge.length) return
+
+    setTasks(prev => {
+      const next = { ...prev }
+      toMerge.forEach(m => {
+        const dk       = m.dateKey
+        const existing = next[dk] || []
+        const existIds = new Set(existing.map(t => t.id))
+        const aiTasks  = m.summary.actionItems
+          .map(item => ({
+            id:        `ai_${m.id}_${item.id ?? Math.random()}`,
+            text:      item.task,
+            done:      false,
+            source:    'ai',
+            meetingId: m.id,
+            owner:     item.owner || '',
+            due:       item.due   || '',
+          }))
+          .filter(t => !existIds.has(t.id))
+        next[dk] = [...existing, ...aiTasks]
+      })
+      return next
+    })
+    setMergedMeetings(prev => [...prev, ...toMerge.map(m => m.id)])
+  }, [meetings]) // eslint-disable-line
+
+  /* All date keys — union of days that have meetings or tasks, always include today */
+  const todayKey = new Date().toISOString().split('T')[0]
+  const allKeys  = [...new Set([
+    todayKey,
+    ...Object.keys(tasks),
+    ...meetings.map(m => m.dateKey),
+  ])].sort((a, b) => b.localeCompare(a))
+
+  /* ── Handlers ── */
+  const dayTasks   = (dk) => tasks[dk] || []
+
+  const toggleDone = (dk, id) =>
+    setTasks(prev => ({ ...prev, [dk]: prev[dk].map(t => t.id === id ? { ...t, done: !t.done } : t) }))
+
+  const deleteTask = (dk, id) =>
+    setTasks(prev => ({ ...prev, [dk]: (prev[dk] || []).filter(t => t.id !== id) }))
+
+  const startEdit  = (task) => { setEditingId(task.id); setEditText(task.text) }
+
+  const commitEdit = (dk, id) => {
+    const text = editText.trim()
+    if (text) setTasks(prev => ({ ...prev, [dk]: prev[dk].map(t => t.id === id ? { ...t, text } : t) }))
+    setEditingId(null); setEditText('')
+  }
+
+  const openAddRow = (dk) => { setAddingDay(dk); setNewTaskText(''); setTimeout(() => newTaskInputRef.current?.focus(), 60) }
+
+  const commitAdd = (dk) => {
+    const text = newTaskText.trim()
+    if (text) {
+      const id = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+      setTasks(prev => ({ ...prev, [dk]: [...(prev[dk] || []), { id, text, done: false, source: 'manual' }] }))
+    }
+    setAddingDay(null); setNewTaskText('')
+  }
+
+  /* ── Empty state ── */
+  if (allKeys.length === 1 && dayTasks(todayKey).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 py-20 text-center px-6">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: '#7133AE0D' }}>
+          <ListTodo size={28} strokeWidth={1.5} style={{ color: '#7133AE' }} />
+        </div>
+        <div>
+          <p className="text-gray-800 font-semibold text-base mb-1">No tasks yet</p>
+          <p className="text-gray-400 text-sm max-w-xs leading-relaxed">
+            Tasks are auto-generated from your meeting AI summaries, or you can add them manually.
+          </p>
+        </div>
+        <button
+          onClick={() => openAddRow(todayKey)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors"
+          style={{ backgroundColor: '#7133AE', color: 'white' }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}
+        >
+          <Plus size={14} strokeWidth={2.5} />
+          Add a task
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-8 w-full">
+      {allKeys.map(dk => {
+        const dt        = dayTasks(dk)
+        const doneCount = dt.filter(t => t.done).length
+
+        return (
+          <section key={dk}>
+            {/* ── Day header ── */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <CalendarDays size={14} className="text-gray-400 flex-shrink-0" />
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  {formatDateGroup(dk)}
+                </span>
+                {dt.length > 0 && (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-xs font-medium"
+                    style={{ backgroundColor: doneCount === dt.length ? '#f0fdf4' : '#7133AE0D', color: doneCount === dt.length ? '#16a34a' : '#7133AE' }}
+                  >
+                    {doneCount}/{dt.length} done
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => openAddRow(dk)}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors flex-shrink-0"
+                style={{ color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE08' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE15' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE08' }}
+              >
+                <Plus size={12} strokeWidth={2.5} />
+                Add Task
+              </button>
+            </div>
+
+            {/* ── Task list ── */}
+            <div className="flex flex-col gap-2">
+              {dt.length === 0 && addingDay !== dk && (
+                <div
+                  className="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl border border-dashed cursor-pointer transition-colors"
+                  style={{ borderColor: '#e5e7eb' }}
+                  onClick={() => openAddRow(dk)}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#7133AE40' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb' }}
+                >
+                  <Square size={16} strokeWidth={1.5} className="text-gray-300 flex-shrink-0" />
+                  <span className="text-sm text-gray-400">Click to add a task for this day…</span>
+                </div>
+              )}
+
+              {dt.map(task => (
+                <div
+                  key={task.id}
+                  className="group flex items-start gap-3 px-5 py-3.5 bg-white rounded-2xl border border-gray-100 transition-all duration-150"
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#7133AE20'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.05)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#f3f4f6'; e.currentTarget.style.boxShadow = 'none' }}
+                >
+                  {/* Checkbox */}
+                  <button
+                    onClick={() => toggleDone(dk, task.id)}
+                    className="flex-shrink-0 mt-0.5 cursor-pointer transition-colors"
+                    style={{ color: task.done ? '#7133AE' : '#d1d5db' }}
+                    title={task.done ? 'Mark incomplete' : 'Mark complete'}
+                  >
+                    {task.done
+                      ? <SquareCheck size={18} strokeWidth={2} />
+                      : <Square      size={18} strokeWidth={1.5} />
+                    }
+                  </button>
+
+                  {/* Task text + metadata */}
+                  <div className="flex-1 min-w-0">
+                    {editingId === task.id ? (
+                      <input
+                        autoFocus
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onBlur={() => commitEdit(dk, task.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter')  commitEdit(dk, task.id)
+                          if (e.key === 'Escape') { setEditingId(null); setEditText('') }
+                        }}
+                        className="w-full text-sm text-gray-800 bg-transparent outline-none border-b pb-0.5"
+                        style={{ borderColor: '#7133AE' }}
+                      />
+                    ) : (
+                      <p
+                        className="text-sm leading-snug cursor-text select-none"
+                        style={{
+                          color:          task.done ? '#9ca3af' : '#374151',
+                          textDecoration: task.done ? 'line-through' : 'none',
+                        }}
+                        onDoubleClick={() => startEdit(task)}
+                        title="Double-click to edit"
+                      >
+                        {task.text}
+                      </p>
+                    )}
+
+                    {/* AI-sourced metadata: owner + due date */}
+                    {task.source === 'ai' && (task.owner || (task.due && task.due !== 'TBD')) && (
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        {task.owner && (
+                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-gray-300 inline-block" />
+                            {task.owner}
+                          </span>
+                        )}
+                        {task.due && task.due !== 'TBD' && (
+                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <Clock size={10} strokeWidth={2} />
+                            {task.due}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Edit + Delete — visible on hover */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
+                    <button
+                      onClick={() => startEdit(task)}
+                      className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                      title="Edit task"
+                    >
+                      <Pencil size={12} className="text-gray-400" />
+                    </button>
+                    <button
+                      onClick={() => deleteTask(dk, task.id)}
+                      className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                      title="Delete task"
+                    >
+                      <Trash2 size={12} className="text-gray-300 hover:text-red-500 transition-colors" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Inline add-task row */}
+              {addingDay === dk && (
+                <div
+                  className="flex items-center gap-3 px-5 py-3.5 bg-white rounded-2xl border shadow-sm"
+                  style={{ borderColor: '#7133AE40' }}
+                >
+                  <Square size={18} strokeWidth={1.5} className="text-gray-300 flex-shrink-0" />
+                  <input
+                    ref={newTaskInputRef}
+                    value={newTaskText}
+                    onChange={(e) => setNewTaskText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter')  commitAdd(dk)
+                      if (e.key === 'Escape') { setAddingDay(null); setNewTaskText('') }
+                    }}
+                    onBlur={() => commitAdd(dk)}
+                    placeholder="Type a task and press Enter…"
+                    className="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300 bg-transparent"
+                  />
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); commitAdd(dk) }}
+                    className="flex items-center justify-center w-6 h-6 rounded-md cursor-pointer flex-shrink-0"
+                    style={{ backgroundColor: '#7133AE', color: 'white' }}
+                  >
+                    <Check size={12} strokeWidth={2.5} />
+                  </button>
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); setAddingDay(null); setNewTaskText('') }}
+                    className="flex items-center justify-center w-5 h-5 rounded-md cursor-pointer text-gray-400 hover:text-gray-600 flex-shrink-0"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
    PROJECT PAGE
 ───────────────────────────────────────────── */
 export default function ProjectPage({
@@ -1339,16 +1955,48 @@ export default function ProjectPage({
   onUpdateWorkspacePage,
   onDeleteMeeting,
   onDeleteWorkspacePage,
+  onEnsureDailySummaryFolder,
+  onCreatePageWithContent,
   currentUser = null,
   onSignOut,
 }) {
   if (!project) return null
 
-  const [activeTab,        setActiveTab]        = useState('recordings')
+  const [activeTab,           setActiveTab]           = useState('recordings')
   const [deleteMeetingTarget, setDeleteMeetingTarget] = useState(null)
+  const [daySummaryModal,     setDaySummaryModal]     = useState(null)  // { dateKey, meetings }
+  const [storingSummary,      setStoringSummary]      = useState(false)
+  const [storedSummary,       setStoredSummary]       = useState(false)
 
   /* Reset to recordings tab when switching projects */
   useEffect(() => { setActiveTab('recordings') }, [project.id])
+
+  /* Store day summary in workspace */
+  const handleStoreDaySummary = () => {
+    if (!daySummaryModal || storingSummary) return
+    const { dateKey, meetings: dayMeetings } = daySummaryModal
+    const summary = buildDaySummary(dayMeetings)
+    if (!summary) return
+
+    setStoringSummary(true)
+    const folderId  = onEnsureDailySummaryFolder()
+    const pageTitle = formatPageDate(dateKey)
+    const content   = buildDaySummaryHTML(dateKey, summary)
+
+    // Check if a page for this date already exists in the system folder
+    const existing = workspacePages.find(
+      p => p.folderId === folderId && p.title === pageTitle
+    )
+    if (existing) {
+      onUpdateWorkspacePage?.({ ...existing, content, updatedAt: new Date().toISOString() })
+    } else {
+      onCreatePageWithContent?.(folderId, pageTitle, content)
+    }
+
+    setStoringSummary(false)
+    setStoredSummary(true)
+    setTimeout(() => setStoredSummary(false), 2500)
+  }
 
   /* Group meetings by dateKey, sorted newest first */
   const grouped = meetings.reduce((acc, m) => {
@@ -1407,8 +2055,9 @@ export default function ProjectPage({
         {/* ── Tabs ── */}
         <div className="flex border-b border-gray-100 bg-white px-4 flex-shrink-0">
           {[
-            { key: 'recordings', label: 'Recordings',  icon: <Mic size={13} strokeWidth={2.5} /> },
-            { key: 'workspace',  label: 'Workspace',   icon: <FileText size={13} strokeWidth={2.5} /> },
+            { key: 'recordings', label: 'Recordings', icon: <Mic      size={13} strokeWidth={2.5} /> },
+            { key: 'workspace',  label: 'Workspace',  icon: <FileText size={13} strokeWidth={2.5} /> },
+            { key: 'todos',      label: 'To-Do',      icon: <ListTodo size={13} strokeWidth={2.5} /> },
           ].map(tab => (
             <button
               key={tab.key}
@@ -1426,7 +2075,8 @@ export default function ProjectPage({
         </div>
 
         {/* ── Body ── */}
-        <div className={activeTab === 'workspace' ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto px-4 pt-4 pb-6'}>
+        <div className={activeTab === 'workspace' ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto px-4 pt-4 pb-6'}
+        >
 
           {/* ── Recordings Tab ── */}
           {activeTab === 'recordings' && (
@@ -1452,7 +2102,10 @@ export default function ProjectPage({
               </div>
             ) : (
               <div className="flex flex-col gap-8 w-full">
-                {allDateKeys.map(dateKey => (
+                {allDateKeys.map(dateKey => {
+                  const dayMeetings = grouped[dateKey] || []
+                  const hasSummary  = dayMeetings.some(m => m.summary && !m.summary._generating && m.summary.objective)
+                  return (
                   <section key={dateKey}>
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <div className="flex items-center gap-2">
@@ -1461,18 +2114,34 @@ export default function ProjectPage({
                           {formatDateGroup(dateKey)}
                         </span>
                       </div>
-                      {dateKey === todayKey && (
-                        <button
-                          onClick={() => onStartRecording(project)}
-                          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors"
-                          style={{ color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE08' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE15' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE08' }}
-                        >
-                          <Mic size={12} strokeWidth={2.5} />
-                          New Recording
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Summarize Day CTA — shown whenever the day has any meetings */}
+                        {dayMeetings.length > 0 && (
+                          <button
+                            onClick={() => { setDaySummaryModal({ dateKey, meetings: dayMeetings }); setStoredSummary(false) }}
+                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors"
+                            style={{ color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE08' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE15' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE08' }}
+                            title={hasSummary ? 'View cumulative summary for this day' : 'Summaries still generating…'}
+                          >
+                            <BookOpen size={12} strokeWidth={2.5} />
+                            Summarize Day
+                          </button>
+                        )}
+                        {dateKey === todayKey && (
+                          <button
+                            onClick={() => onStartRecording(project)}
+                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors"
+                            style={{ color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE08' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE15' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE08' }}
+                          >
+                            <Mic size={12} strokeWidth={2.5} />
+                            New Recording
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-2">
@@ -1524,7 +2193,8 @@ export default function ProjectPage({
                       ))}
                     </div>
                   </section>
-                ))}
+                  )
+                })}
               </div>
             )
           )}
@@ -1542,6 +2212,11 @@ export default function ProjectPage({
               onUpdatePage={onUpdateWorkspacePage}
               onDeletePage={onDeleteWorkspacePage}
             />
+          )}
+
+          {/* ── To-Do Tab ── */}
+          {activeTab === 'todos' && (
+            <TodoTab key={project.id} meetings={meetings} projectId={project.id} />
           )}
         </div>
 
@@ -1584,6 +2259,30 @@ export default function ProjectPage({
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Day Summary Modal ── */}
+        {daySummaryModal && (
+          <DaySummaryModal
+            dateKey={daySummaryModal.dateKey}
+            meetings={daySummaryModal.meetings}
+            onClose={() => { setDaySummaryModal(null); setStoredSummary(false) }}
+            onStoreInWorkspace={handleStoreDaySummary}
+            storing={storingSummary}
+            stored={storedSummary}
+          />
+        )}
+
+        {/* ── "Stored" toast — briefly shown after saving to workspace ── */}
+        {storedSummary && !daySummaryModal && createPortal(
+          <div
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg text-white text-sm font-medium"
+            style={{ backgroundColor: '#16a34a' }}
+          >
+            <Check size={15} strokeWidth={2.5} />
+            Summary saved to Daily Summary folder
+          </div>,
+          document.body
         )}
       </main>
     </div>
