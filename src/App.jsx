@@ -97,78 +97,87 @@ function generateTitle(projectName, lines) {
   return `${projectName} – Team Sync`
 }
 
-/* ─── Summary helpers ─── */
-function _cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s }
-
-function _extractDue(sentence) {
-  const m = sentence.match(
-    /\b(by\s+)?(monday|tuesday|wednesday|thursday|friday|end of week|eow|end of day|eod|today|tomorrow|next week|this week)\b/i
-  )
-  if (!m) return 'TBD'
-  return m[0].replace(/^by\s+/i, '').replace(/\b\w/g, c => c.toUpperCase())
+/* ─── AI Summary ─── */
+const EMPTY_SUMMARY = {
+  objective:       '',
+  topicsDiscussed: [],
+  keyInsights:     [],
+  decisionsMade:   [],
+  actionItems:     [],
+  _generating:     false,
 }
 
-const _STOP = new Set(
-  'the a an and or but in on at to for of with is are was were be been have has had do does did will would could should may might shall can need that this these those it its we they i you he she our your their my also just very so if as by into from up out like make get let go use then than about here there when where who what how not no yes okay ok yeah sure right well actually really think know want need going im its just'.split(' ')
-)
+async function generateAISummary(lines) {
+  if (!lines?.length) return EMPTY_SUMMARY
 
-function generateSummaryFromTranscript(lines) {
-  if (!lines?.length) return { topicsDiscussed: [], decisions: [], actionItems: [], keyHighlights: [] }
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+  if (!apiKey || apiKey === 'your_anthropic_api_key_here') return EMPTY_SUMMARY
 
-  const allText = lines.map(l => l.text).join(' ')
+  const transcript = lines.map(l => `${l.speaker}: ${l.text}`).join('\n')
 
-  // Split into sentences
-  const sentences = allText
-    .replace(/([.!?])\s+/g, '$1|||')
-    .split('|||')
-    .map(s => s.trim())
-    .filter(s => s.length > 8)
+  const prompt = `You are analyzing a meeting transcript and generating a structured meeting summary.
 
-  // Word frequency for keyword extraction
-  const freq = {}
-  allText.toLowerCase().match(/\b[a-z]{4,}\b/g)?.forEach(w => {
-    if (!_STOP.has(w)) freq[w] = (freq[w] || 0) + 1
-  })
-  const keywords = Object.entries(freq)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 14)
-    .map(([w]) => w)
+Important rules:
+- Do NOT copy sentences directly from the transcript.
+- Remove filler speech, repetitions, and conversational phrases.
+- Compress the information into clear insights.
+- Focus on meaning, decisions, and outcomes.
+- Use concise professional language.
 
-  const keyScore = s => keywords.filter(k => s.toLowerCase().includes(k)).length
+Meeting Transcript:
+---
+${transcript}
+---
 
-  // Topics: sentences with highest keyword density
-  const topicsDiscussed = [...sentences]
-    .filter(s => keyScore(s) >= 2)
-    .sort((a, b) => keyScore(b) - keyScore(a))
-    .slice(0, 5)
-    .map(s => _cap(s))
+Return ONLY a valid JSON object with this exact structure (no markdown, no extra text):
+{
+  "objective": "1–2 sentences explaining the purpose of the meeting",
+  "topicsDiscussed": ["2–3 sentence summary of topic 1", "2–3 sentence summary of topic 2"],
+  "keyInsights": ["Most important insight or conclusion 1", "Insight 2"],
+  "decisionsMade": ["Decision 1", "Decision 2"],
+  "actionItems": [
+    { "id": 1, "task": "Task description", "owner": "Speaker name or Team", "due": "Due date or TBD" }
+  ]
+}
 
-  const finalTopics = topicsDiscussed.length >= 2
-    ? topicsDiscussed
-    : keywords.slice(0, 4).map(k => `Discussion around ${k}`)
+If no decisions were made, set decisionsMade to ["No final decisions were made."].
+If no action items exist, set actionItems to [].`
 
-  // Decisions
-  const decisionRx = /\b(decided|agreed|going with|confirmed|we('ll| will) (use|keep|go|adopt)|let'?s (use|go|keep|adopt)|chosen|settled on|happy with|stick with)\b/i
-  const decisions = sentences.filter(s => decisionRx.test(s)).slice(0, 4).map(s => _cap(s))
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 1200,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
 
-  // Action items
-  const futureRx  = /\b(i('ll| will)|we('ll| will)|need[s]? to|going to|should|have to|will)\b/i
-  const taskRx    = /\b(create|set up|update|send|share|build|write|review|check|add|fix|prepare|book|schedule|call|email|document|test|deploy|draft|design|implement|follow up|complete)\b/i
-  const actionSentences = sentences.filter(s => futureRx.test(s) && taskRx.test(s)).slice(0, 5)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    const text = data.content?.[0]?.text?.trim() ?? ''
+    const jsonStr = text.match(/\{[\s\S]*\}/)?.[0]
+    if (!jsonStr) throw new Error('No JSON in response')
+    const parsed = JSON.parse(jsonStr)
 
-  const actionItems = actionSentences.map((s, i) => {
-    const ownerLine = lines.find(l => s.toLowerCase().startsWith(l.text.toLowerCase().slice(0, 18).toLowerCase()))
-    return { id: i + 1, task: _cap(s), owner: ownerLine?.speaker || 'Team', due: _extractDue(s) }
-  })
-
-  // Key highlights: high keyword density, not already in decisions
-  const keyHighlights = [...sentences]
-    .filter(s => s.length > 20 && !decisions.includes(_cap(s)))
-    .sort((a, b) => keyScore(b) - keyScore(a))
-    .slice(0, 4)
-    .map(s => _cap(s))
-
-  return { topicsDiscussed: finalTopics, decisions, actionItems, keyHighlights }
+    return {
+      objective:       parsed.objective       || '',
+      topicsDiscussed: parsed.topicsDiscussed || [],
+      keyInsights:     parsed.keyInsights     || [],
+      decisionsMade:   parsed.decisionsMade   || [],
+      actionItems:     (parsed.actionItems    || []).map((a, i) => ({ ...a, id: a.id ?? i + 1 })),
+      _generating:     false,
+    }
+  } catch (err) {
+    console.error('[AI Summary]', err)
+    return EMPTY_SUMMARY
+  }
 }
 
 
@@ -1087,18 +1096,18 @@ export default function App() {
   }
 
   /* ── Meeting helpers ── */
-  const buildMeeting = () => ({
+  const buildMeeting = (lines) => ({
     id:          Date.now().toString(),
     projectId:   recProject.id,
     projectName: recProject.name,
-    title:       generateTitle(recProject.name, recLines),
+    title:       generateTitle(recProject.name, lines),
     date:        nowDateLabel(),
     dateKey:     nowDateKey(),
     time:        nowTimeLabel(),
     duration:    fmt(recSeconds),
     language:    'English',
-    transcript:  [...recLines],
-    summary:     generateSummaryFromTranscript(recLines),
+    transcript:  [...lines],
+    summary:     { ...EMPTY_SUMMARY, _generating: true },
   })
 
   const clearRecording = () => {
@@ -1121,12 +1130,19 @@ export default function App() {
   const handleEndRecording = () => {
     isRecordingRef.current = false    // zero immediately so navToProject won't reopen PiP
     closePiP()                        // close PiP before navigation
-    const meeting = buildMeeting()
+    const lines   = [...recLines]
+    const meeting = buildMeeting(lines)
     const pid     = recProject.id
     setMeetings(prev => [meeting, ...prev])
-    fsSaveMeeting(currentUser?.uid, meeting)   // persist to Firestore
+    fsSaveMeeting(currentUser?.uid, meeting)   // persist to Firestore (with _generating flag)
     clearRecording()
     navToProject(pid)
+    // Generate AI summary in background, then update meeting
+    generateAISummary(lines).then(aiSummary => {
+      const updated = { ...meeting, summary: aiSummary }
+      setMeetings(prev => prev.map(m => m.id === meeting.id ? updated : m))
+      fsSaveMeeting(currentUser?.uid, updated)
+    })
   }
 
 
@@ -1218,21 +1234,27 @@ export default function App() {
     const d = recoveryData
     if (d?.project) {
       // Build and save the recovered meeting
+      const recoveredLines = d.lines ?? []
       const meeting = {
         id:          Date.now().toString(),
         projectId:   d.project.id,
         projectName: d.project.name,
-        title:       generateTitle(d.project.name, d.lines ?? []),
+        title:       generateTitle(d.project.name, recoveredLines),
         date:        nowDateLabel(),
         dateKey:     nowDateKey(),
         time:        nowTimeLabel(),
         duration:    fmt(d.seconds ?? 0),
         language:    'English',
-        transcript:  [...(d.lines ?? [])],
-        summary:     generateSummaryFromTranscript(d.lines ?? []),
+        transcript:  [...recoveredLines],
+        summary:     { ...EMPTY_SUMMARY, _generating: true },
       }
       setMeetings(prev => [meeting, ...prev])
       fsSaveMeeting(currentUser?.uid, meeting)  // persist recovered meeting
+      generateAISummary(recoveredLines).then(aiSummary => {
+        const updated = { ...meeting, summary: aiSummary }
+        setMeetings(prev => prev.map(m => m.id === meeting.id ? updated : m))
+        fsSaveMeeting(currentUser?.uid, updated)
+      })
       // Clear recovery and start fresh recording in same project
       localStorage.removeItem(AUTOSAVE_KEY)
       setRecoveryData(null)

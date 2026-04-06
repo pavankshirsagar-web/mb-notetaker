@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Folder, Clock, Globe, Download,
   Pencil, Check, Plus, Trash2, ChevronRight, Users, X, Copy, CheckCheck,
@@ -20,6 +20,43 @@ function resolveInitials(speakerId, overrideName) {
   if (speakerId === 'You') return 'PK'
   if (speakerId.startsWith('Speaker ')) return speakerId.replace('Speaker ', 'S')
   return speakerId.slice(0, 2).toUpperCase()
+}
+
+/* ─────────────────────────────────────────────
+   OBJECTIVE EDITOR (inline editable paragraph)
+───────────────────────────────────────────── */
+function ObjectiveEditor({ value, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [val,     setVal]     = useState(value)
+
+  useEffect(() => { setVal(value) }, [value])
+
+  const save = () => { setEditing(false); if (val.trim() !== value) onSave(val.trim()) }
+
+  if (editing) {
+    return (
+      <textarea
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() } }}
+        rows={2}
+        className="w-full text-sm text-gray-700 leading-relaxed border-b border-purple-300 outline-none bg-transparent resize-none pb-0.5"
+      />
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="w-full text-left cursor-text group"
+    >
+      <p className={['text-sm leading-relaxed', value ? 'text-gray-700 hover:text-gray-900' : 'text-gray-300 italic'].join(' ')}>
+        {value || 'Click to add meeting objective…'}
+      </p>
+    </button>
+  )
 }
 
 /* ─────────────────────────────────────────────
@@ -177,7 +214,7 @@ export default function MeetingDetail({
 }) {
   const [title,        setTitle]        = useState(meeting?.title ?? '')
   const [editingTitle, setEditingTitle] = useState(false)
-  const [summary,      setSummary]      = useState(meeting?.summary ?? { topicsDiscussed: [], decisions: [], actionItems: [], keyHighlights: [] })
+  const [summary,      setSummary]      = useState(meeting?.summary ?? { objective: '', topicsDiscussed: [], keyInsights: [], decisionsMade: [], actionItems: [], _generating: false })
 
   /* ── Speaker rename state ── */
   const [speakerNames,   setSpeakerNames]   = useState(meeting?.speakerNames ?? {})
@@ -187,6 +224,13 @@ export default function MeetingDetail({
   /* ── Copy feedback ── */
   const [transcriptCopied, setTranscriptCopied] = useState(false)
   const [summaryCopied,    setSummaryCopied]    = useState(false)
+
+  // Sync summary from prop when background AI generation completes
+  useEffect(() => {
+    if (meeting?.summary && !meeting.summary._generating) {
+      setSummary(meeting.summary)
+    }
+  }, [meeting?.summary?._generating]) // eslint-disable-line
 
   if (!meeting || !project) return null
 
@@ -225,18 +269,13 @@ export default function MeetingDetail({
   }
 
   const buildSummaryText = () => {
-    const sections = [
-      { label: 'Topics Discussed',  items: summary.topicsDiscussed },
-      { label: 'Decisions Made',    items: summary.decisions },
-      { label: 'Key Highlights',    items: summary.keyHighlights },
-    ]
-    const actionText = summary.actionItems
-      .map(a => `• ${a.task} — Owner: ${a.owner}, Due: ${a.due}`)
-      .join('\n')
-    return [
-      ...sections.map(s => `${s.label.toUpperCase()}\n${s.items.map(i => `• ${i}`).join('\n')}`),
-      `ACTION ITEMS\n${actionText}`,
-    ].join('\n\n')
+    const parts = []
+    if (summary.objective)              parts.push(`OBJECTIVE\n${summary.objective}`)
+    if (summary.topicsDiscussed?.length) parts.push(`TOPICS DISCUSSED\n${summary.topicsDiscussed.map(t => `• ${t}`).join('\n')}`)
+    if (summary.keyInsights?.length)    parts.push(`KEY INSIGHTS\n${summary.keyInsights.map(i => `• ${i}`).join('\n')}`)
+    if (summary.decisionsMade?.length)  parts.push(`DECISIONS MADE\n${summary.decisionsMade.map(d => `• ${d}`).join('\n')}`)
+    if (summary.actionItems?.length)    parts.push(`ACTION ITEMS\n${summary.actionItems.map(a => `• ${a.task} — Owner: ${a.owner}, Due: ${a.due}`).join('\n')}`)
+    return parts.join('\n\n')
   }
 
   const copySummary = () => {
@@ -269,19 +308,25 @@ export default function MeetingDetail({
     onUpdate({ ...meeting, title: title.trim() || meeting.title })
   }
 
+  /* ── Objective helper ── */
+  const updateObjective = (val) => {
+    const updated = { ...summary, objective: val }
+    setSummary(updated); onUpdate({ ...meeting, summary: updated })
+  }
+
   /* ── Bullet helpers ── */
   const updateBullet = (section, idx, val) => {
-    const next = [...summary[section]]; next[idx] = val
+    const next = [...(summary[section] || [])]; next[idx] = val
     const updated = { ...summary, [section]: next }
     setSummary(updated); onUpdate({ ...meeting, summary: updated })
   }
   const deleteBullet = (section, idx) => {
-    const next = summary[section].filter((_, i) => i !== idx)
+    const next = (summary[section] || []).filter((_, i) => i !== idx)
     const updated = { ...summary, [section]: next }
     setSummary(updated); onUpdate({ ...meeting, summary: updated })
   }
   const addBullet = (section) => {
-    const next = [...summary[section], 'New item — click to edit']
+    const next = [...(summary[section] || []), 'New item — click to edit']
     const updated = { ...summary, [section]: next }
     setSummary(updated); onUpdate({ ...meeting, summary: updated })
   }
@@ -537,37 +582,64 @@ export default function MeetingDetail({
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
-              <SummarySection title="Topics Discussed" onAddItem={() => addBullet('topicsDiscussed')}>
-                {summary.topicsDiscussed.map((t, i) => (
-                  <EditableBullet key={i} text={t}
-                    onChange={(v) => updateBullet('topicsDiscussed', i, v)}
-                    onDelete={() => deleteBullet('topicsDiscussed', i)} />
-                ))}
-              </SummarySection>
 
-              <SummarySection title="Decisions Made" onAddItem={() => addBullet('decisions')}>
-                {summary.decisions.map((d, i) => (
-                  <EditableBullet key={i} text={d}
-                    onChange={(v) => updateBullet('decisions', i, v)}
-                    onDelete={() => deleteBullet('decisions', i)} />
-                ))}
-              </SummarySection>
+              {/* ── Loading state ── */}
+              {summary._generating && (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin" />
+                  <p className="text-sm text-gray-400 font-medium">Generating AI summary…</p>
+                  <p className="text-xs text-gray-300">This usually takes 5–10 seconds</p>
+                </div>
+              )}
 
-              <SummarySection title="Action Items" onAddItem={addAction}>
-                {summary.actionItems.map((item, i) => (
-                  <ActionItemRow key={item.id ?? i} item={item}
-                    onChange={(v) => updateAction(i, v)}
-                    onDelete={() => deleteAction(i)} />
-                ))}
-              </SummarySection>
+              {/* ── Summary content ── */}
+              {!summary._generating && (
+                <>
+                  {/* 1. Objective */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Objective</span>
+                    </div>
+                    <ObjectiveEditor value={summary.objective} onSave={updateObjective} />
+                  </div>
 
-              <SummarySection title="Key Highlights" onAddItem={() => addBullet('keyHighlights')}>
-                {summary.keyHighlights.map((h, i) => (
-                  <EditableBullet key={i} text={h}
-                    onChange={(v) => updateBullet('keyHighlights', i, v)}
-                    onDelete={() => deleteBullet('keyHighlights', i)} />
-                ))}
-              </SummarySection>
+                  {/* 2. Topics Discussed */}
+                  <SummarySection title="Topics Discussed" onAddItem={() => addBullet('topicsDiscussed')}>
+                    {(summary.topicsDiscussed || []).map((t, i) => (
+                      <EditableBullet key={i} text={t}
+                        onChange={(v) => updateBullet('topicsDiscussed', i, v)}
+                        onDelete={() => deleteBullet('topicsDiscussed', i)} />
+                    ))}
+                  </SummarySection>
+
+                  {/* 3. Key Insights */}
+                  <SummarySection title="Key Insights" onAddItem={() => addBullet('keyInsights')}>
+                    {(summary.keyInsights || []).map((h, i) => (
+                      <EditableBullet key={i} text={h}
+                        onChange={(v) => updateBullet('keyInsights', i, v)}
+                        onDelete={() => deleteBullet('keyInsights', i)} />
+                    ))}
+                  </SummarySection>
+
+                  {/* 4. Decisions Made */}
+                  <SummarySection title="Decisions Made" onAddItem={() => addBullet('decisionsMade')}>
+                    {(summary.decisionsMade || []).map((d, i) => (
+                      <EditableBullet key={i} text={d}
+                        onChange={(v) => updateBullet('decisionsMade', i, v)}
+                        onDelete={() => deleteBullet('decisionsMade', i)} />
+                    ))}
+                  </SummarySection>
+
+                  {/* 5. Action Items */}
+                  <SummarySection title="Action Items" onAddItem={addAction}>
+                    {(summary.actionItems || []).map((item, i) => (
+                      <ActionItemRow key={item.id ?? i} item={item}
+                        onChange={(v) => updateAction(i, v)}
+                        onDelete={() => deleteAction(i)} />
+                    ))}
+                  </SummarySection>
+                </>
+              )}
             </div>
           </div>
 
