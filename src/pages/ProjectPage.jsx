@@ -5,12 +5,148 @@ import {
   FileText, FolderOpen, Plus, MoreHorizontal, Trash2, X,
   Search, Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Code, List, ListOrdered, Quote, Minus,
+  Image as ImageIcon, Video, Link as LinkIcon, Table as TableIcon,
+  Check, Copy, CopyPlus, Columns, Rows,
+  GripVertical, ChevronDown,
+  AlignLeft, AlignCenter, AlignRight,
+  ExternalLink, FileText as FileIcon, Download, Paperclip,
+  Type,
 } from 'lucide-react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
+import { NodeSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import UnderlineExt from '@tiptap/extension-underline'
+import ImageExt from '@tiptap/extension-image'
+import LinkExt from '@tiptap/extension-link'
+import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
+import Youtube from '@tiptap/extension-youtube'
+import TextAlign from '@tiptap/extension-text-align'
+import { Node, mergeAttributes } from '@tiptap/core'
 import Sidebar from '../components/Sidebar'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+
+/* ─────────────────────────────────────────────
+   FILE ATTACHMENT — Tiptap node + React view
+───────────────────────────────────────────── */
+function FileAttachmentView({ node, selected }) {
+  const { src, fileName, fileType, fileSize } = node.attrs
+  const isPdf = fileType === 'pdf'
+  const [preview, setPreview] = useState(false)
+
+  const fmt = (b) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`
+
+  const open = () => {
+    if (isPdf) setPreview(true)
+    else {
+      // DOC/DOCX — trigger download
+      const a = document.createElement('a')
+      a.href = src; a.download = fileName; a.click()
+    }
+  }
+
+  return (
+    <NodeViewWrapper>
+      <div
+        contentEditable={false}
+        onClick={open}
+        className="flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors my-1"
+        style={{
+          borderColor: selected ? '#7133AE' : '#e5e7eb',
+          backgroundColor: selected ? '#7133AE08' : '#f9fafb',
+        }}
+      >
+        <div
+          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: isPdf ? '#fef2f2' : '#eff6ff' }}
+        >
+          <FileIcon size={20} style={{ color: isPdf ? '#dc2626' : '#2563eb' }} strokeWidth={1.5} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-800 truncate">{fileName}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{fileType.toUpperCase()} • {fmt(fileSize)}</p>
+        </div>
+        {isPdf
+          ? <ExternalLink size={14} className="text-gray-400 flex-shrink-0" />
+          : <Download size={14} className="text-gray-400 flex-shrink-0" />
+        }
+      </div>
+
+      {/* PDF preview modal */}
+      {preview && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex flex-col"
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
+        >
+          <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ backgroundColor: '#1a1a2e' }}>
+            <span className="text-white text-sm font-medium truncate max-w-lg">{fileName}</span>
+            <button onClick={() => setPreview(false)} className="text-gray-400 hover:text-white cursor-pointer ml-4 flex-shrink-0">
+              <X size={20} />
+            </button>
+          </div>
+          <iframe src={src} className="flex-1 w-full border-0" title={fileName} />
+        </div>,
+        document.body
+      )}
+    </NodeViewWrapper>
+  )
+}
+
+const FileAttachmentExt = Node.create({
+  name: 'fileAttachment',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      src:      { default: null },
+      fileName: { default: 'File' },
+      fileType: { default: '' },
+      fileSize: { default: 0 },
+    }
+  },
+  parseHTML()  { return [{ tag: 'div[data-file-attachment]' }] },
+  renderHTML({ HTMLAttributes }) { return ['div', mergeAttributes({ 'data-file-attachment': '' }, HTMLAttributes)] },
+  addNodeView() { return ReactNodeViewRenderer(FileAttachmentView) },
+})
+
+/* Custom paragraph node with body2 variant support */
+const CustomParagraph = Node.create({
+  name: 'paragraph',
+  priority: 1000,
+  group: 'block',
+  content: 'inline*',
+  addAttributes() {
+    return {
+      variant: {
+        default: null,
+        parseHTML: el => el.getAttribute('data-variant') || null,
+        renderHTML: attrs => attrs.variant ? { 'data-variant': attrs.variant, class: `para-${attrs.variant}` } : {},
+      },
+    }
+  },
+  parseHTML()  { return [{ tag: 'p' }] },
+  renderHTML({ HTMLAttributes }) { return ['p', mergeAttributes(HTMLAttributes), 0] },
+})
+
+/* Heading style options */
+const HEADING_OPTIONS = [
+  { value: 'b1', label: 'Body 1', sub: 'Normal text',     fontSize: '15px', fontWeight: '400', color: '#374151' },
+  { value: 'b2', label: 'Body 2', sub: 'Secondary text',  fontSize: '13px', fontWeight: '400', color: '#6b7280' },
+  { value: '1',  label: 'H1',     sub: 'Title',            fontSize: '26px', fontWeight: '700', color: '#111827' },
+  { value: '2',  label: 'H2',     sub: 'Heading',          fontSize: '20px', fontWeight: '600', color: '#1f2937' },
+  { value: '3',  label: 'H3',     sub: 'Subheading',       fontSize: '16px', fontWeight: '600', color: '#374151' },
+  { value: '4',  label: 'H4',     sub: 'Small heading',    fontSize: '14px', fontWeight: '600', color: '#374151' },
+  { value: '5',  label: 'H5',     sub: 'Fine print',       fontSize: '12px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' },
+]
 
 /* ─────────────────────────────────────────────
    DATE GROUP LABEL
@@ -188,11 +324,84 @@ function InlinePageEditor({ page, onUpdate }) {
     }
   }
 
+  /* ── URL popover state (link / image / video) ── */
+  const [popover, setPopover] = useState(null) // { type: 'link'|'image'|'video', value: '' }
+  const popoverRef    = useRef(null)          // always-fresh ref
+  const popoverInputRef = useRef(null)
+  const imageInputRef   = useRef(null)
+  const fileInputRef    = useRef(null)
+  const editorRef       = useRef(null)        // so popover handlers can access editor
+
+  useEffect(() => { popoverRef.current = popover }, [popover])
+  useEffect(() => {
+    if (popover) setTimeout(() => popoverInputRef.current?.focus(), 50)
+  }, [popover])
+
+  // ── Drag handle ──
+  const [dragHandle, setDragHandle]   = useState(null)
+  const dragIsDragging                = useRef(false)
+  const isOverHandle                  = useRef(false)
+  const clearHandleTimer              = useRef(null)   // delayed clear so mouse can reach the icon
+
+  const scheduleClearHandle = () => {
+    clearTimeout(clearHandleTimer.current)
+    clearHandleTimer.current = setTimeout(() => {
+      if (!isOverHandle.current && !dragIsDragging.current) setDragHandle(null)
+    }, 180)
+  }
+  const cancelClearHandle = () => clearTimeout(clearHandleTimer.current)
+
+  // ── Context menu ──
+  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, nodeType, nodePos, attrs }
+  const ctxMenuRef = useRef(null)
+
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenu) return
+    const close = (e) => { if (!ctxMenuRef.current?.contains(e.target)) setCtxMenu(null) }
+    window.addEventListener('mousedown', close)
+    return () => window.removeEventListener('mousedown', close)
+  }, [ctxMenu])
+
+
+  const openPopover = (type) => {
+    const currentLink = type === 'link' ? editorRef.current?.getAttributes('link').href || '' : ''
+    setPopover({ type, value: currentLink })
+  }
+
+  const commitPopover = (p = popoverRef.current) => {
+    if (!p) return
+    const url = p.value.trim()
+    setPopover(null)
+    if (!url) return
+    const ed = editorRef.current
+    if (!ed) return
+    if (p.type === 'link') {
+      if (url === 'remove') { ed.chain().focus().unsetLink().run() }
+      else { ed.chain().focus().setLink({ href: url.startsWith('http') ? url : `https://${url}`, target: '_blank' }).run() }
+    } else if (p.type === 'image') {
+      ed.chain().focus().setImage({ src: url }).run()
+    } else if (p.type === 'video') {
+      ed.chain().focus().setYoutubeVideo({ src: url }).run()
+    }
+  }
+
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({ paragraph: false }),
+      CustomParagraph,
       UnderlineExt,
       Placeholder.configure({ placeholder: 'Start writing…' }),
+      ImageExt.configure({ inline: false, allowBase64: true }),
+      LinkExt.configure({ openOnClick: true, autolink: true, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' } }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      Youtube.configure({ width: '100%', height: 340, nocookie: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      FileAttachmentExt,
     ],
     content: page?.content || '',
     onUpdate: ({ editor }) => {
@@ -205,6 +414,9 @@ function InlinePageEditor({ page, onUpdate }) {
     },
   })
 
+  // keep editorRef in sync so popover handlers always have fresh editor
+  useEffect(() => { editorRef.current = editor }, [editor])
+
   useEffect(() => {
     if (editor && page?.id) {
       editor.commands.setContent(page.content || '', false)
@@ -214,6 +426,173 @@ function InlinePageEditor({ page, onUpdate }) {
   useEffect(() => () => clearTimeout(saveTimerRef.current), [])
 
   if (!editor) return null
+
+  // ── Drag: track hovered block ──
+  const onEditorMouseMove = (e) => {
+    if (!editor || dragIsDragging.current || isOverHandle.current) return
+    cancelClearHandle()  // mouse re-entered editor — cancel any pending hide
+    const view = editor.view
+    const result = view.posAtCoords({ left: e.clientX, top: e.clientY })
+    if (!result) { scheduleClearHandle(); return }
+    try {
+      const $pos = editor.state.doc.resolve(result.pos)
+      const blockStart = $pos.depth >= 1 ? $pos.before(1) : 0
+      const domResult = view.domAtPos(blockStart + 1)
+      let el = domResult.node
+      if (el.nodeType === 3) el = el.parentElement
+      while (el && el.parentElement !== view.dom) el = el.parentElement
+      if (!el || el === view.dom) { scheduleClearHandle(); return }
+      const rect = el.getBoundingClientRect()
+      const editorRect = view.dom.getBoundingClientRect()
+      setDragHandle({ clientY: rect.top + rect.height / 2, editorLeft: editorRect.left, nodePos: blockStart })
+    } catch { scheduleClearHandle() }
+  }
+
+  // ── Drag: start — wire ProseMirror's internal dragging state ──
+  const onDragHandleDragStart = (e) => {
+    if (!dragHandle || !editor) return
+    cancelClearHandle()
+    dragIsDragging.current = true
+    const view = editor.view
+    const { state } = view
+    try {
+      const nodePos = dragHandle.nodePos + 1
+      // If user has a non-empty selection that overlaps the hovered block, drag that selection
+      const existing = state.selection
+      let sel
+      if (!existing.empty && existing.from <= nodePos && existing.to >= nodePos) {
+        sel = existing
+      } else {
+        sel = NodeSelection.create(state.doc, nodePos)
+        view.dispatch(state.tr.setSelection(sel))
+      }
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', state.doc.textBetween(sel.from, sel.to, '\n'))
+      view.dragging = { slice: sel.content(), move: true }
+    } catch { dragIsDragging.current = false }
+  }
+
+  // ── Drag: end — clean up ──
+  const onDragHandleDragEnd = () => {
+    dragIsDragging.current = false
+    isOverHandle.current   = false
+    setDragHandle(null)
+    // Clear ProseMirror's dragging state if drop didn't happen in the editor
+    if (editor?.view?.dragging) editor.view.dragging = null
+  }
+
+  // ── Context menu: right-click ──
+  const onContextMenu = (e) => {
+    if (!editor) return
+    const view = editor.view
+    const result = view.posAtCoords({ left: e.clientX, top: e.clientY })
+    if (!result) return
+    e.preventDefault()
+    const { state } = editor
+    const $pos = state.doc.resolve(result.pos)
+
+    // Walk ancestors to detect table context (handles clicks inside cells)
+    let nodeType = 'block'
+    let nodePos = result.pos
+    let attrs = {}
+
+    for (let d = $pos.depth; d >= 1; d--) {
+      const ancestor = $pos.node(d)
+      if (ancestor.type.name === 'table') {
+        nodeType = 'table'
+        nodePos = $pos.before(d)
+        break
+      }
+    }
+
+    if (nodeType === 'block') {
+      const node = state.doc.nodeAt(result.pos)
+      if (node && !['doc', 'paragraph', 'text'].includes(node.type.name)) {
+        nodeType = node.type.name
+        attrs = node.attrs
+      }
+    }
+
+    // Link mark overrides (but not inside table)
+    if (nodeType !== 'table') {
+      const linkMark = $pos.marks().find(m => m.type.name === 'link')
+      if (linkMark) { nodeType = 'link'; attrs = linkMark.attrs }
+    }
+
+    setCtxMenu({ x: e.clientX, y: e.clientY, nodeType, nodePos, attrs })
+  }
+
+  // ── Execute context action ──
+  const execCtx = (action) => {
+    const m = ctxMenu
+    setCtxMenu(null)
+    const ed = editorRef.current
+    if (!ed || !m) return
+
+    if (action === 'deleteTable') {
+      // Move cursor inside the table first, then delete
+      ed.chain().focus(m.nodePos + 2).deleteTable().run()
+    } else if (action === 'deleteRow') {
+      ed.chain().focus(m.nodePos + 2).deleteRow().run()
+    } else if (action === 'deleteColumn') {
+      ed.chain().focus(m.nodePos + 2).deleteColumn().run()
+    } else if (action === 'copy') {
+      if (m.nodeType === 'image' || m.nodeType === 'youtube') {
+        navigator.clipboard.writeText(m.attrs.src || '')
+      } else if (m.nodeType === 'link') {
+        navigator.clipboard.writeText(m.attrs.href || '')
+      } else {
+        // Copy selected text or block text content
+        const { selection } = ed.state
+        const text = selection.empty
+          ? ed.state.doc.textBetween(m.nodePos, m.nodePos + (ed.state.doc.nodeAt(m.nodePos)?.nodeSize || 1), '\n')
+          : ed.state.doc.textBetween(selection.from, selection.to, '\n')
+        navigator.clipboard.writeText(text).catch(() => document.execCommand('copy'))
+      }
+    } else if (action === 'duplicate') {
+      const node = ed.state.doc.nodeAt(m.nodePos)
+      if (node) {
+        const insertPos = m.nodePos + node.nodeSize
+        const tr = ed.state.tr.insert(insertPos, node.copy(node.content))
+        ed.view.dispatch(tr)
+      }
+    } else if (action === 'delete') {
+      if (m.nodeType === 'link') {
+        ed.chain().focus().unsetLink().run()
+      } else {
+        try { ed.chain().focus().setNodeSelection(m.nodePos).deleteSelection().run() }
+        catch { ed.chain().focus().selectParentNode().deleteSelection().run() }
+      }
+    }
+  }
+
+  // ── Build context menu items ──
+  const ctxItems = () => {
+    if (!ctxMenu) return []
+    const { nodeType } = ctxMenu
+    if (nodeType === 'table') {
+      return [
+        { label: 'Copy',          Icon: Copy,    action: 'copy' },
+        { label: 'Duplicate',     Icon: CopyPlus, action: 'duplicate' },
+        { divider: true },
+        { label: 'Delete Row',    Icon: Rows,    action: 'deleteRow',    danger: true },
+        { label: 'Delete Column', Icon: Columns, action: 'deleteColumn', danger: true },
+        { label: 'Delete Table',  Icon: Trash2,  action: 'deleteTable',  danger: true },
+      ]
+    }
+    const deleteLabel =
+      nodeType === 'horizontalRule' ? 'Delete Divider' :
+      nodeType === 'image'          ? 'Delete Image'   :
+      nodeType === 'youtube'        ? 'Delete Video'   :
+      nodeType === 'link'           ? 'Remove Link'    :
+      'Delete Block'
+    return [
+      { label: 'Copy',      Icon: Copy,    action: 'copy' },
+      { label: 'Duplicate', Icon: CopyPlus, action: 'duplicate' },
+      { divider: true },
+      { label: deleteLabel, Icon: Trash2,  action: 'delete', danger: true },
+    ]
+  }
 
   const ToolBtn = ({ action, isActive, title, children }) => (
     <button
@@ -226,8 +605,19 @@ function InlinePageEditor({ page, onUpdate }) {
     >{children}</button>
   )
 
+  /* popover placeholder & label */
+  const popoverMeta = {
+    link:  { label: 'Link URL',   placeholder: 'https://example.com' },
+    image: { label: 'Image URL',  placeholder: 'https://example.com/image.png' },
+    video: { label: 'YouTube / Vimeo URL', placeholder: 'https://youtube.com/watch?v=…' },
+  }
+
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-white">
+    <div
+      className="flex flex-col h-full overflow-hidden bg-white"
+      onMouseMove={onEditorMouseMove}
+      onMouseLeave={scheduleClearHandle}
+    >
       {/* Title + save status */}
       <div className="px-10 pt-8 pb-2 flex-shrink-0 flex items-start justify-between gap-4">
         <h1
@@ -254,27 +644,315 @@ function InlinePageEditor({ page, onUpdate }) {
         </span>
       </div>
 
-      {/* Toolbar */}
-      <div className="px-10 pb-4 flex-shrink-0">
+      {/* Hidden file input for local image upload — outside toolbar */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (!file) return
+          const reader = new FileReader()
+          reader.onload = (ev) => {
+            editorRef.current?.chain().focus().setImage({ src: ev.target.result }).run()
+            setPopover(null)
+          }
+          reader.readAsDataURL(file)
+          e.target.value = ''
+        }}
+      />
+
+      {/* Hidden file input for PDF / DOC uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (!file) return
+          const reader = new FileReader()
+          reader.onload = (ev) => {
+            const ext = file.name.split('.').pop().toLowerCase()
+            editorRef.current?.chain().focus().insertContent({
+              type: 'fileAttachment',
+              attrs: {
+                src: ev.target.result,
+                fileName: file.name,
+                fileType: ext,
+                fileSize: file.size,
+              },
+            }).run()
+          }
+          reader.readAsDataURL(file)
+          e.target.value = ''
+        }}
+      />
+
+      {/* Toolbar — relative so popover can be positioned below it */}
+      <div className="px-10 pb-3 flex-shrink-0 relative">
         <div className="flex items-center gap-0.5 px-2 py-1.5 bg-white border border-gray-100 rounded-xl shadow-sm w-fit flex-wrap">
+
+          {/* ── Heading / paragraph — shadcn DropdownMenu ── */}
+          {(() => {
+            const level   = [1,2,3,4,5].find(l => editor.isActive('heading', { level: l }))
+            const isBody2 = !level && editor.isActive('paragraph', { variant: 'body2' })
+            const activeVal = level ? String(level) : isBody2 ? 'b2' : 'b1'
+            const activeOpt = HEADING_OPTIONS.find(o => o.value === activeVal) || HEADING_OPTIONS[0]
+
+            const applyStyle = (val) => {
+              if (val === 'b1')      editor.chain().focus().setParagraph().updateAttributes('paragraph', { variant: null }).run()
+              else if (val === 'b2') editor.chain().focus().setParagraph().updateAttributes('paragraph', { variant: 'body2' }).run()
+              else                   editor.chain().focus().setHeading({ level: parseInt(val) }).run()
+            }
+
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    className="flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-lg text-xs font-medium transition-colors select-none cursor-pointer hover:bg-accent outline-none"
+                    style={{
+                      color: (level || isBody2) ? '#7133AE' : '#4b5563',
+                      backgroundColor: (level || isBody2) ? '#7133AE0D' : 'transparent',
+                      minWidth: 72,
+                    }}
+                  >
+                    <Type size={12} strokeWidth={2.2} />
+                    <span>{activeOpt.label}</span>
+                    <ChevronDown size={10} strokeWidth={2.5} className="text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="start" className="w-56 p-1.5">
+                  <DropdownMenuLabel className="px-2 pb-1">Text style</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+
+                  {HEADING_OPTIONS.map((opt) => {
+                    const isActive = opt.value === activeVal
+                    return (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onSelect={() => applyStyle(opt.value)}
+                        className="flex items-center justify-between gap-3 px-2 py-2 rounded-lg cursor-pointer"
+                        style={{ backgroundColor: isActive ? '#7133AE0D' : undefined }}
+                      >
+                        {/* Left — name + description */}
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span
+                            className="text-[11px] font-medium leading-none"
+                            style={{ color: isActive ? '#7133AE' : '#374151' }}
+                          >
+                            {opt.label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground leading-none">{opt.sub}</span>
+                        </div>
+
+                        {/* Right — live "Ag" preview */}
+                        <span
+                          className="shrink-0 leading-none"
+                          style={{
+                            fontSize: opt.fontSize,
+                            fontWeight: opt.fontWeight,
+                            color: isActive ? '#7133AE' : opt.color,
+                            textTransform: opt.textTransform || 'none',
+                            letterSpacing: opt.letterSpacing || 'normal',
+                          }}
+                        >
+                          Ag
+                        </span>
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )
+          })()}
+
+          <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
+          {/* ── Text formatting ── */}
           <ToolBtn action={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} title="Bold"><Bold size={13} strokeWidth={2.5} /></ToolBtn>
           <ToolBtn action={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} title="Italic"><Italic size={13} strokeWidth={2.5} /></ToolBtn>
           <ToolBtn action={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} title="Underline"><UnderlineIcon size={13} strokeWidth={2.5} /></ToolBtn>
-          <ToolBtn action={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} title="Strike"><Strikethrough size={13} strokeWidth={2.5} /></ToolBtn>
+          <ToolBtn action={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} title="Strikethrough"><Strikethrough size={13} strokeWidth={2.5} /></ToolBtn>
+
           <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
+          {/* ── Alignment ── */}
+          <ToolBtn action={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} title="Align Left"><AlignLeft size={13} strokeWidth={2.5} /></ToolBtn>
+          <ToolBtn action={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} title="Align Center"><AlignCenter size={13} strokeWidth={2.5} /></ToolBtn>
+          <ToolBtn action={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} title="Align Right"><AlignRight size={13} strokeWidth={2.5} /></ToolBtn>
+
+          <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
+          {/* ── Lists ── */}
           <ToolBtn action={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} title="Bullet List"><List size={13} strokeWidth={2.5} /></ToolBtn>
           <ToolBtn action={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} title="Ordered List"><ListOrdered size={13} strokeWidth={2.5} /></ToolBtn>
+
           <div className="w-px h-4 bg-gray-200 mx-0.5" />
-          <ToolBtn action={() => editor.chain().focus().toggleCode().run()} isActive={editor.isActive('code')} title="Code"><Code size={13} strokeWidth={2.5} /></ToolBtn>
+
+          {/* ── Code / Quote / Divider ── */}
+          <ToolBtn action={() => editor.chain().focus().toggleCode().run()} isActive={editor.isActive('code')} title="Inline Code"><Code size={13} strokeWidth={2.5} /></ToolBtn>
           <ToolBtn action={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} title="Blockquote"><Quote size={13} strokeWidth={2.5} /></ToolBtn>
           <ToolBtn action={() => editor.chain().focus().setHorizontalRule().run()} isActive={false} title="Divider"><Minus size={13} strokeWidth={2.5} /></ToolBtn>
+
+          <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
+          {/* ── Media / Link / Table ── */}
+          <ToolBtn action={() => openPopover('link')} isActive={editor.isActive('link')} title="Insert Link"><LinkIcon size={13} strokeWidth={2.5} /></ToolBtn>
+          <ToolBtn action={() => openPopover('image')} isActive={false} title="Insert Image"><ImageIcon size={13} strokeWidth={2.5} /></ToolBtn>
+          <ToolBtn action={() => openPopover('video')} isActive={false} title="Embed Video"><Video size={13} strokeWidth={2.5} /></ToolBtn>
+          <ToolBtn
+            action={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+            isActive={editor.isActive('table')}
+            title="Insert Table"
+          ><TableIcon size={13} strokeWidth={2.5} /></ToolBtn>
+
+          <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
+          {/* ── File attach (PDF/DOC) — label wraps input for reliable picker ── */}
+          <label
+            title="Attach PDF / DOC"
+            className="flex items-center justify-center w-7 h-7 rounded-md transition-colors cursor-pointer select-none"
+            style={{ color: '#6b7280' }}
+            onMouseDown={(e) => e.preventDefault()}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE12'; e.currentTarget.style.color = '#7133AE' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6b7280' }}
+          >
+            <Paperclip size={13} strokeWidth={2.5} />
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = (ev) => {
+                  const ext = file.name.split('.').pop().toLowerCase()
+                  editorRef.current?.chain().focus().insertContent({
+                    type: 'fileAttachment',
+                    attrs: { src: ev.target.result, fileName: file.name, fileType: ext, fileSize: file.size },
+                  }).run()
+                }
+                reader.readAsDataURL(file)
+                e.target.value = ''
+              }}
+            />
+          </label>
+
         </div>
+
+        {/* URL Popover — absolutely positioned below toolbar, never overflows */}
+        {popover && (
+          <div
+            className="absolute left-10 top-full mt-1 z-50 flex items-center gap-2 px-3 py-2.5 bg-white border border-gray-200 rounded-xl shadow-lg"
+            style={{ minWidth: 340 }}
+          >
+            <span className="text-xs font-medium text-gray-400 whitespace-nowrap flex-shrink-0">
+              {popoverMeta[popover.type].label}
+            </span>
+            <input
+              ref={popoverInputRef}
+              type="url"
+              value={popover.value}
+              onChange={(e) => setPopover(p => ({ ...p, value: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitPopover(popover) }
+                if (e.key === 'Escape') setPopover(null)
+              }}
+              placeholder={popoverMeta[popover.type].placeholder}
+              className="flex-1 text-xs text-gray-700 outline-none min-w-0 placeholder-gray-300"
+            />
+            {/* Upload button — only for image */}
+            {popover.type === 'image' && (
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                className="text-xs font-medium whitespace-nowrap cursor-pointer flex-shrink-0 px-2 py-1 rounded-md hover:bg-purple-50 transition-colors"
+                style={{ color: '#7133AE' }}
+              >Upload</button>
+            )}
+            {/* Remove link */}
+            {popover.type === 'link' && editor.isActive('link') && (
+              <button
+                onMouseDown={(e) => { e.preventDefault(); commitPopover({ type: 'link', value: 'remove' }) }}
+                className="text-xs text-red-400 hover:text-red-600 whitespace-nowrap cursor-pointer flex-shrink-0"
+              >Remove</button>
+            )}
+            {/* Confirm */}
+            <button
+              onMouseDown={(e) => { e.preventDefault(); commitPopover(popover) }}
+              className="flex items-center justify-center w-6 h-6 rounded-md cursor-pointer flex-shrink-0"
+              style={{ backgroundColor: '#7133AE', color: 'white' }}
+            ><Check size={12} strokeWidth={2.5} /></button>
+            {/* Close */}
+            <button
+              onMouseDown={(e) => { e.preventDefault(); setPopover(null) }}
+              className="flex items-center justify-center w-5 h-5 rounded-md cursor-pointer text-gray-400 hover:text-gray-600 flex-shrink-0"
+            ><X size={12} /></button>
+          </div>
+        )}
       </div>
 
       {/* Editor content */}
-      <div className="flex-1 overflow-y-auto px-10 pb-10">
+      <div className="flex-1 overflow-y-auto px-10 pb-10" onContextMenu={onContextMenu}>
         <EditorContent editor={editor} className="tiptap-editor" />
       </div>
+
+      {/* Drag handle — floats just left of hovered block */}
+      {dragHandle && (
+        <div
+          draggable
+          className="fixed z-40 flex items-center justify-center w-7 h-7 rounded cursor-grab active:cursor-grabbing select-none transition-colors"
+          style={{
+            top: dragHandle.clientY - 14,
+            left: dragHandle.editorLeft - 8,
+            transform: 'translateX(-100%)',
+            color: '#9ca3af',
+          }}
+          onMouseEnter={() => { cancelClearHandle(); isOverHandle.current = true }}
+          onMouseLeave={() => { isOverHandle.current = false; scheduleClearHandle() }}
+          onDragStart={onDragHandleDragStart}
+          onDragEnd={onDragHandleDragEnd}
+          title="Drag to reorder"
+        >
+          <GripVertical size={18} strokeWidth={2} />
+        </div>
+      )}
+
+      {/* Context menu portal */}
+      {ctxMenu && createPortal(
+        <div
+          ref={ctxMenuRef}
+          className="fixed z-[9999] bg-white border border-gray-100 rounded-xl shadow-2xl py-1.5 overflow-hidden"
+          style={{
+            minWidth: 180,
+            left: Math.min(ctxMenu.x, window.innerWidth - 200),
+            top: Math.min(ctxMenu.y, window.innerHeight - 220),
+          }}
+        >
+          {ctxItems().map((item, i) =>
+            item.divider ? (
+              <div key={`div-${i}`} className="my-1 mx-3 border-t border-gray-100" />
+            ) : (
+              <button
+                key={item.action}
+                onMouseDown={(e) => { e.preventDefault(); execCtx(item.action) }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors cursor-pointer text-left"
+                style={{ color: item.danger ? '#dc2626' : '#374151' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = item.danger ? '#fef2f2' : '#f9fafb' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+              >
+                <item.Icon size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
+                {item.label}
+              </button>
+            )
+          )}
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
