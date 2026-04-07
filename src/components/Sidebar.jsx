@@ -749,7 +749,7 @@ export default function Sidebar({
     const active = activeSidebarTab === id
     return (
       <button key={id} onClick={onClick}
-        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-left w-full"
+        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-left w-full"
         style={{ backgroundColor: active ? '#7133AE0F' : 'transparent', color: active ? '#7133AE' : '#6b7280' }}
         onMouseEnter={(e) => { if (!active) e.currentTarget.style.backgroundColor = '#f9fafb' }}
         onMouseLeave={(e) => { if (!active) e.currentTarget.style.backgroundColor = 'transparent' }}>
@@ -785,12 +785,12 @@ export default function Sidebar({
         {/* Top nav: To-Do + Summary */}
         <nav className="flex flex-col gap-0.5 px-3 pt-3 pb-1 flex-shrink-0">
           {navBtn('todos',
-            <ListTodo size={16} strokeWidth={activeSidebarTab === 'todos' ? 2.5 : 2} className="flex-shrink-0" />,
+            <ListTodo size={13} strokeWidth={activeSidebarTab === 'todos' ? 2.5 : 2} className="flex-shrink-0" />,
             'To-Do',
             () => onNavigateToTodos?.()
           )}
           {navBtn('daily',
-            <BookOpen size={16} strokeWidth={activeSidebarTab === 'daily' ? 2.5 : 2} className="flex-shrink-0" />,
+            <BookOpen size={13} strokeWidth={activeSidebarTab === 'daily' ? 2.5 : 2} className="flex-shrink-0" />,
             'Daily Work Summary',
             () => onNavigateToDaily?.()
           )}
