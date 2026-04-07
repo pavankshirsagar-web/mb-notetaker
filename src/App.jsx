@@ -192,7 +192,7 @@ export default function App() {
 
   /* ── Page / navigation ── */
   const [page,            setPage]            = useState('login')
-  const [projects,        setProjects]        = useState(INITIAL_PROJECTS)
+  const [projects,        setProjects]        = useState([])
   const [meetings,        setMeetings]        = useState([])
   const [activeProjectId, setActiveProjectId] = useState(null)
   const [activeMeetingId, setActiveMeetingId] = useState(null)
@@ -297,17 +297,8 @@ export default function App() {
       const loadedProjects = projSnap.docs.map(d => d.data())
       const loadedMeetings = meetSnap.docs.map(d => d.data())
 
-      if (loadedProjects.length === 0) {
-        // First login — seed with the four starter projects
-        const batch = writeBatch(db)
-        INITIAL_PROJECTS.forEach(p =>
-          batch.set(doc(db, 'users', uid, 'projects', String(p.id)), p)
-        )
-        await batch.commit()
-        setProjects(INITIAL_PROJECTS)
-      } else {
-        setProjects(loadedProjects)
-      }
+      // New users start with no projects — they create their own
+      setProjects(loadedProjects)
 
       // Sort newest-first (meeting IDs are timestamp strings)
       loadedMeetings.sort((a, b) => b.id.localeCompare(a.id))
@@ -415,7 +406,7 @@ export default function App() {
       } else {
         setPage('login')
         // Clear all user data from memory when logging out
-        setProjects(INITIAL_PROJECTS)
+        setProjects([])
         setMeetings([])
         setActiveProjectId(null)
         setActiveMeetingId(null)
