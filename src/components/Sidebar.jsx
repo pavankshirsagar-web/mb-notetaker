@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Plus, Folder, MoreHorizontal, Pencil, Trash2, X, Search,
-  ListTodo, BookOpen, ChevronDown, ChevronRight,
+  ListTodo, BookOpen,
   Square, SquareCheck, CalendarDays, Sparkles,
   RefreshCw,
 } from 'lucide-react'
@@ -256,20 +256,22 @@ export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = 
 
               {dayTasks.map(task => (
                 <div key={task.id}
-                  className="group flex items-center gap-2.5 px-3 py-3 rounded-xl border transition-all"
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all"
                   style={{
                     backgroundColor: task.done ? '#fafafa' : '#ffffff',
                     borderColor: task.done ? '#f0f0f0' : '#f3f4f6',
-                    opacity: task.done ? 0.65 : 1,
+                    opacity: task.done ? 0.55 : 1,
                   }}
                   onMouseEnter={(e) => { if (!task.done) e.currentTarget.style.borderColor = '#7133AE20' }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = task.done ? '#f0f0f0' : '#f3f4f6' }}>
 
                   {/* Checkbox */}
                   <button onClick={() => toggleDone(task)}
-                    className="flex-shrink-0 cursor-pointer transition-colors"
-                    style={{ color: task.done ? '#d1d5db' : '#d1d5db' }}>
-                    {task.done ? <SquareCheck size={15} strokeWidth={2} style={{ color: '#9ca3af' }} /> : <Square size={15} strokeWidth={1.5} />}
+                    className="flex-shrink-0 cursor-pointer transition-colors">
+                    {task.done
+                      ? <SquareCheck size={16} strokeWidth={2} style={{ color: '#9ca3af' }} />
+                      : <Square size={16} strokeWidth={1.5} className="text-gray-300" />
+                    }
                   </button>
 
                   {/* Task text — inline edit for today */}
@@ -279,11 +281,11 @@ export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = 
                         onBlur={() => commitEdit(task)}
                         onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(task); if (e.key === 'Escape') { setEditingId(null); setEditText('') } }}
                         autoFocus
-                        className="w-full text-xs text-gray-800 bg-transparent outline-none border-b"
+                        className="w-full text-sm text-gray-800 bg-transparent outline-none border-b"
                         style={{ borderColor: '#7133AE' }}
                       />
                     ) : (
-                      <p className="text-xs leading-snug truncate"
+                      <p className="text-sm leading-snug"
                         style={{
                           color: task.done ? '#b0b7c3' : '#374151',
                           textDecoration: task.done ? 'line-through' : 'none',
@@ -296,21 +298,20 @@ export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = 
                     )}
                   </div>
 
-                  {/* Project chip — neutral color, end of row */}
+                  {/* Project chip — neutral, end of row */}
                   {task.projectName && (
-                    <span className="flex-shrink-0 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight"
+                    <span className="flex-shrink-0 px-2 py-0.5 rounded-md text-[11px] font-medium leading-tight"
                       style={{ backgroundColor: '#f3f4f6', color: '#6b7280' }}>
                       {task.projectName}
                     </span>
                   )}
 
-                  {/* Delete — today only, on hover */}
-                  {isToday && !task.done && (
-                    <button onClick={() => deleteTask(task)}
-                      className="flex-shrink-0 w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                      <X size={11} className="text-gray-400 hover:text-red-500 transition-colors" />
-                    </button>
-                  )}
+                  {/* Delete — always visible for all tasks */}
+                  <button onClick={() => deleteTask(task)}
+                    className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md transition-colors cursor-pointer hover:bg-red-50"
+                    title="Delete task">
+                    <Trash2 size={13} className="text-gray-300 hover:text-red-400 transition-colors" />
+                  </button>
                 </div>
               ))}
 
@@ -427,8 +428,8 @@ export function DailySummaryTab({ projects, meetings, fullPage = false }) {
             <BookOpen size={16} style={{ color: '#7133AE' }} />
           </div>
           <div>
-            <h1 className="text-gray-900 font-semibold text-base leading-tight">Summary</h1>
-            <p className="text-xs text-gray-400 leading-tight">AI-generated daily summaries of your meetings</p>
+            <h1 className="text-gray-900 font-semibold text-base leading-tight">Daily Work Summary</h1>
+            <p className="text-xs text-gray-400 leading-tight">AI-generated daily summaries of your work</p>
           </div>
         </div>
       )}
@@ -448,9 +449,6 @@ export function DailySummaryTab({ projects, meetings, fullPage = false }) {
             <div className="flex items-center gap-1.5 mb-2">
               <CalendarDays size={11} className="text-gray-400 flex-shrink-0" />
               <span className="text-[10px] font-semibold text-gray-400 tracking-wider">{fmtKey(dk)}</span>
-              {dayMeetings.length > 0 && (
-                <span className="text-[10px] text-gray-400">· {dayMeetings.length} mtg</span>
-              )}
             </div>
 
             {/* No meetings */}
@@ -598,10 +596,10 @@ function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateP
   const filtered   = projects.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   return (
-    <>
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Search — only when > 3 projects */}
       {projects.length > 3 && (
-        <div className="px-3 pt-1 pb-1">
+        <div className="px-3 pt-1 pb-2">
           <div className="relative">
             <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -613,16 +611,7 @@ function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateP
       )}
 
       {/* Project list */}
-      <div className="flex flex-col gap-0.5 px-2 pb-2 max-h-[55vh] overflow-y-auto">
-
-        {/* New project — always at top, styled like a project item */}
-        <button onClick={() => { const id = onCreateProject?.(); if (id != null) { setRenamingId(id); setRenameValue('New Project') } }}
-          className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-left w-full transition-all duration-150 cursor-pointer hover:bg-gray-50 group/new">
-          <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100 group-hover/new:bg-purple-50 transition-colors">
-            <Plus size={11} strokeWidth={2.5} className="text-gray-400 group-hover/new:text-purple-500 transition-colors" />
-          </div>
-          <span className="text-xs font-medium text-gray-400 group-hover/new:text-purple-600 transition-colors">New project</span>
-        </button>
+      <div className="flex flex-col gap-0.5 px-3 pb-2 overflow-y-auto h-full">
 
         {filtered.map(project => {
           const isActive   = project.id === activeProjectId
@@ -731,7 +720,7 @@ function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateP
         </div>,
         document.body
       )}
-    </>
+    </div>
   )
 }
 
@@ -742,7 +731,7 @@ export default function Sidebar({
   projects = [],
   meetings = [],
   activeProjectId = null,
-  activeSidebarTab = 'projects',
+  activeSidebarTab = null,  // 'todos' | 'daily' | null
   onNavigateToProject,
   onNavigateToDashboard,
   onNavigateToTodos,
@@ -753,10 +742,25 @@ export default function Sidebar({
   currentUser = null,
   onSignOut,
 }) {
-  const [projectsExpanded, setProjectsExpanded] = useState(true)
-  const [createProjTick,   setCreateProjTick]   = useState(0)
+  const [createProjTick,    setCreateProjTick]    = useState(0)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+
+  const navBtn = (id, icon, label, onClick) => {
+    const active = activeSidebarTab === id
+    return (
+      <button key={id} onClick={onClick}
+        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-left w-full"
+        style={{ backgroundColor: active ? '#7133AE0F' : 'transparent', color: active ? '#7133AE' : '#6b7280' }}
+        onMouseEnter={(e) => { if (!active) e.currentTarget.style.backgroundColor = '#f9fafb' }}
+        onMouseLeave={(e) => { if (!active) e.currentTarget.style.backgroundColor = 'transparent' }}>
+        {icon}
+        <span>{label}</span>
+      </button>
+    )
+  }
 
   return (
+    <>
     <aside className="flex flex-col h-screen w-[272px] flex-shrink-0 border-r border-gray-100 bg-white">
 
       {/* Logo */}
@@ -775,49 +779,38 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* ── Vertical nav ──────────────────────────────────────────────────── */}
-      <nav className="flex flex-col gap-0.5 px-2 pt-3 flex-shrink-0">
+      {/* ── Nav + Projects (fills remaining height, profile is pinned) ────── */}
+      <div className="flex flex-col flex-1 overflow-hidden">
 
-        {/* To-Do row — navigates to main content */}
-        <button onClick={() => onNavigateToTodos?.()}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-left w-full"
-          style={{ backgroundColor: activeSidebarTab === 'todos' ? '#7133AE0F' : 'transparent', color: activeSidebarTab === 'todos' ? '#7133AE' : '#6b7280' }}
-          onMouseEnter={(e) => { if (activeSidebarTab !== 'todos') e.currentTarget.style.backgroundColor = '#f9fafb' }}
-          onMouseLeave={(e) => { if (activeSidebarTab !== 'todos') e.currentTarget.style.backgroundColor = 'transparent' }}>
-          <ListTodo size={16} strokeWidth={activeSidebarTab === 'todos' ? 2.5 : 2} className="flex-shrink-0" />
-          <span className="flex-1">To-Do</span>
-        </button>
-
-        {/* Summary row — navigates to main content */}
-        <button onClick={() => onNavigateToDaily?.()}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-left w-full"
-          style={{ backgroundColor: activeSidebarTab === 'daily' ? '#7133AE0F' : 'transparent', color: activeSidebarTab === 'daily' ? '#7133AE' : '#6b7280' }}
-          onMouseEnter={(e) => { if (activeSidebarTab !== 'daily') e.currentTarget.style.backgroundColor = '#f9fafb' }}
-          onMouseLeave={(e) => { if (activeSidebarTab !== 'daily') e.currentTarget.style.backgroundColor = 'transparent' }}>
-          <BookOpen size={16} strokeWidth={activeSidebarTab === 'daily' ? 2.5 : 2} className="flex-shrink-0" />
-          <span className="flex-1">Summary</span>
-        </button>
-
-        {/* Projects row — inline accordion */}
-        <button onClick={() => setProjectsExpanded(v => !v)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-left w-full"
-          style={{ backgroundColor: activeSidebarTab === 'projects' ? '#7133AE0F' : 'transparent', color: activeSidebarTab === 'projects' ? '#7133AE' : '#6b7280' }}
-          onMouseEnter={(e) => { if (activeSidebarTab !== 'projects') e.currentTarget.style.backgroundColor = '#f9fafb' }}
-          onMouseLeave={(e) => { if (activeSidebarTab !== 'projects') e.currentTarget.style.backgroundColor = 'transparent' }}>
-          <Folder size={16} strokeWidth={activeSidebarTab === 'projects' ? 2.5 : 2} className="flex-shrink-0" />
-          <span>Projects</span>
-          {projects.length > 0 && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{projects.length}</span>
+        {/* Top nav: To-Do + Summary */}
+        <nav className="flex flex-col gap-0.5 px-3 pt-3 pb-1 flex-shrink-0">
+          {navBtn('todos',
+            <ListTodo size={16} strokeWidth={activeSidebarTab === 'todos' ? 2.5 : 2} className="flex-shrink-0" />,
+            'To-Do',
+            () => onNavigateToTodos?.()
           )}
-          <span className="flex-1" />
-          {projectsExpanded
-            ? <ChevronDown size={13} className="flex-shrink-0 text-purple-400" />
-            : <ChevronRight size={13} className="flex-shrink-0 text-gray-400" />
-          }
-        </button>
+          {navBtn('daily',
+            <BookOpen size={16} strokeWidth={activeSidebarTab === 'daily' ? 2.5 : 2} className="flex-shrink-0" />,
+            'Daily Work Summary',
+            () => onNavigateToDaily?.()
+          )}
+        </nav>
 
-        {/* Inline project list */}
-        {projectsExpanded && (
+        {/* Divider */}
+        <div className="mx-3 border-t border-gray-100 my-2 flex-shrink-0" />
+
+        {/* Projects header: label + "Add new project" */}
+        <div className="flex items-center justify-between px-3 mb-2 flex-shrink-0">
+          <span className="text-[10px] font-bold tracking-widest text-gray-400">PROJECTS</span>
+          <button onClick={() => setCreateProjTick(t => t + 1)}
+            className="text-[11px] font-semibold cursor-pointer transition-colors hover:opacity-80"
+            style={{ color: '#7133AE' }}>
+            + Add new
+          </button>
+        </div>
+
+        {/* Scrollable project list */}
+        <div className="flex-1 overflow-hidden">
           <ProjectsTab
             projects={projects}
             activeProjectId={activeProjectId}
@@ -827,13 +820,10 @@ export default function Sidebar({
             onDeleteProject={onDeleteProject}
             createTick={createProjTick}
           />
-        )}
-      </nav>
+        </div>
+      </div>
 
-      {/* Spacer — pushes profile to bottom */}
-      <div className="flex-1" />
-
-      {/* User profile */}
+      {/* User profile — always pinned to bottom */}
       <div className="border-t border-gray-100 px-3 py-3 flex-shrink-0">
         <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg group">
           {currentUser?.photoURL ? (
@@ -851,7 +841,7 @@ export default function Sidebar({
             <p className="text-[10px] text-gray-400 truncate leading-tight">{currentUser?.email ?? ''}</p>
           </div>
           {onSignOut && (
-            <button onClick={onSignOut} title="Sign out"
+            <button onClick={() => setShowLogoutConfirm(true)} title="Sign out"
               className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer opacity-0 group-hover:opacity-100">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -864,5 +854,56 @@ export default function Sidebar({
       </div>
 
     </aside>
+
+    {/* ── Logout confirmation modal ─────────────────────────────────────── */}
+    {showLogoutConfirm && createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center"
+        style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+        onClick={() => setShowLogoutConfirm(false)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}>
+
+          {/* Header */}
+          <div className="flex items-start justify-between px-6 pt-6 pb-4">
+            <div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                style={{ backgroundColor: '#7133AE12' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7133AE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </div>
+              <h3 className="text-gray-900 font-semibold text-base">Sign out?</h3>
+              <p className="text-sm text-gray-500 mt-1 leading-snug">
+                Your work is saved automatically. You can safely sign out without losing anything.
+              </p>
+            </div>
+            <button onClick={() => setShowLogoutConfirm(false)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex-shrink-0 ml-2">
+              <X size={15} className="text-gray-400" />
+            </button>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2.5 px-6 pb-6">
+            <button onClick={() => setShowLogoutConfirm(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={() => { setShowLogoutConfirm(false); onSignOut?.() }}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer"
+              style={{ backgroundColor: '#7133AE' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}>
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   )
 }

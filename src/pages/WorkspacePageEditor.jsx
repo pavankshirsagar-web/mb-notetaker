@@ -101,7 +101,7 @@ export default function WorkspacePageEditor({
       <Sidebar
         projects={projects}
         activeProjectId={project?.id}
-        activeSidebarTab="projects"
+        activeSidebarTab={null}
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
         onNavigateToTodos={onNavigateToTodos}
