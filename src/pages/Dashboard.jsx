@@ -412,7 +412,7 @@ export default function Dashboard({
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar
         projects={projects}
-        activeSidebarTab="projects"
+        activeSidebarTab={null}
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
         onNavigateToTodos={onNavigateToTodos}
@@ -486,7 +486,7 @@ export default function Dashboard({
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar
         projects={projects}
-        activeSidebarTab="projects"
+        activeSidebarTab={null}
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
         onNavigateToTodos={onNavigateToTodos}

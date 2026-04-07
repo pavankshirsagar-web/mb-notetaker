@@ -2024,7 +2024,7 @@ export default function ProjectPage({
         projects={projects}
         meetings={allMeetings}
         activeProjectId={project.id}
-        activeSidebarTab="projects"
+        activeSidebarTab={null}
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
         onNavigateToTodos={onNavigateToTodos}
