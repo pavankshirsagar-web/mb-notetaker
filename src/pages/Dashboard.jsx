@@ -429,7 +429,7 @@ export default function Dashboard({
 
         <div className="text-center ">
           <p className="text-gray-800 font-semibold text-lg leading-snug mb-1 whitespace-nowrap">
-            SStay focused. Let every meeting turn into clear notes.
+            Stay focused. Let every meeting turn into clear notes.
           </p>
           <p className="text-gray-400 text-sm leading-relaxed max-w-md" >
             Record your meetings and let AI capture transcripts, summaries, and action items automatically.
