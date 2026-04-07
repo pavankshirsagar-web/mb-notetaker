@@ -290,9 +290,9 @@ export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = 
                           color: task.done ? '#b0b7c3' : '#374151',
                           textDecoration: task.done ? 'line-through' : 'none',
                           textDecorationColor: '#c4c9d4',
-                          cursor: isToday && !task.done ? 'text' : 'default',
+                          cursor: !task.done ? 'text' : 'default',
                         }}
-                        onDoubleClick={() => { if (isToday && !task.done) { setEditingId(task.id); setEditText(task.text) } }}>
+                        onDoubleClick={() => { if (!task.done) { setEditingId(task.id); setEditText(task.text) } }}>
                         {task.text}
                       </p>
                     )}
@@ -306,12 +306,22 @@ export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = 
                     </span>
                   )}
 
-                  {/* Delete — always visible for all tasks */}
-                  <button onClick={() => deleteTask(task)}
-                    className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md transition-colors cursor-pointer hover:bg-red-50"
-                    title="Delete task">
-                    <Trash2 size={13} className="text-gray-300 hover:text-red-400 transition-colors" />
-                  </button>
+                  {/* Edit + Delete — always visible, tightly grouped */}
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    {!task.done && editingId !== task.id && (
+                      <button
+                        onClick={() => { setEditingId(task.id); setEditText(task.text) }}
+                        className="w-6 h-6 flex items-center justify-center rounded-md transition-colors cursor-pointer hover:bg-blue-50"
+                        title="Edit task">
+                        <Pencil size={12} className="text-gray-300 hover:text-blue-400 transition-colors" />
+                      </button>
+                    )}
+                    <button onClick={() => deleteTask(task)}
+                      className="w-6 h-6 flex items-center justify-center rounded-md transition-colors cursor-pointer hover:bg-red-50"
+                      title="Delete task">
+                      <Trash2 size={12} className="text-gray-300 hover:text-red-400 transition-colors" />
+                    </button>
+                  </div>
                 </div>
               ))}
 
