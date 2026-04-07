@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, Plus, Folder, MoreHorizontal, Pencil, Trash2, X, Search } from 'lucide-react'
+import { Bell, Plus, Folder, MoreHorizontal, Pencil, Trash2, X, Search, LogOut } from 'lucide-react'
 
 /* ─── Portal dropdown — renders at document.body to escape overflow clipping ─── */
 function ProjectMenu({ project, anchorRect, onRename, onDelete, onClose, menuRef }) {
@@ -51,6 +51,7 @@ export default function Sidebar({
   const [renamingId,   setRenamingId]   = useState(null)
   const [renameValue,  setRenameValue]  = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [searchQuery,  setSearchQuery]  = useState('')
 
   const menuRef   = useRef(null)
@@ -310,15 +311,11 @@ export default function Sidebar({
             {/* Sign out button */}
             {onSignOut && (
               <button
-                onClick={onSignOut}
+                onClick={() => setShowLogoutModal(true)}
                 title="Sign out"
                 className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
+                <LogOut size={15} />
               </button>
             )}
           </div>
@@ -336,6 +333,56 @@ export default function Sidebar({
           onDelete={(p) => setDeleteTarget(p)}
           onClose={() => { setOpenMenuId(null); setMenuAnchor(null) }}
         />
+      )}
+
+      {/* Logout confirmation modal */}
+      {showLogoutModal && createPortal(
+        <div
+          className="fixed inset-0 z-[9998] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between px-6 pt-6 pb-4">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-3">
+                  <LogOut size={18} className="text-red-500" />
+                </div>
+                <h3 className="text-gray-900 font-semibold text-base">Sign out of MB Notetaker?</h3>
+                <p className="text-sm text-gray-500 mt-1 leading-snug">
+                  You'll be signed out of your account. Active recordings will be saved automatically.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex-shrink-0 ml-2"
+              >
+                <X size={15} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="flex gap-2.5 px-6 pb-6">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowLogoutModal(false); onSignOut() }}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer"
+                style={{ backgroundColor: '#DC2626' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#B91C1C' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#DC2626' }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete confirmation modal */}

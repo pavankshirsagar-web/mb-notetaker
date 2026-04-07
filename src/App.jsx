@@ -1153,6 +1153,24 @@ export default function App() {
     })
   }
 
+  const handleSignOut = () => {
+    if (isRecording && recProject) {
+      isRecordingRef.current = false
+      closePiP()
+      const lines   = [...recLines]
+      const meeting = buildMeeting(lines)
+      setMeetings(prev => [meeting, ...prev])
+      fsSaveMeeting(currentUser?.uid, meeting)
+      clearRecording()
+      // Generate AI summary in background even after sign out
+      generateAISummary(lines).then(aiSummary => {
+        const updated = { ...meeting, summary: aiSummary }
+        fsSaveMeeting(currentUser?.uid, updated)
+      })
+    }
+    signOutUser()
+  }
+
 
   /* ── Chrome Extension bridge: notify extension when recording state changes ── */
   const extBridgeInitRef = useRef(false)
@@ -1478,7 +1496,7 @@ export default function App() {
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
           currentUser={currentUser}
-          onSignOut={signOutUser}
+          onSignOut={handleSignOut}
           waveHeights={waveHeights}
         />
       )}
@@ -1509,7 +1527,7 @@ export default function App() {
           onDeleteMeeting={handleDeleteMeeting}
           onDeleteWorkspacePage={handleDeleteWorkspacePage}
           currentUser={currentUser}
-          onSignOut={signOutUser}
+          onSignOut={handleSignOut}
         />
       )}
 
@@ -1526,7 +1544,7 @@ export default function App() {
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
           currentUser={currentUser}
-          onSignOut={signOutUser}
+          onSignOut={handleSignOut}
           waveHeights={waveHeights}
         />
       )}
@@ -1545,7 +1563,7 @@ export default function App() {
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
           currentUser={currentUser}
-          onSignOut={signOutUser}
+          onSignOut={handleSignOut}
         />
       )}
 
