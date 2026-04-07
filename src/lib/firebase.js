@@ -8,12 +8,12 @@ import { getFirestore }                                 from 'firebase/firestore
    https://console.firebase.google.com → Project settings → Your apps → Web app
 ────────────────────────────────────────────────────────────────────────────── */
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY            || 'AIzaSyA67VLJV-xmfGe-BCxj0BIToZI70_6sf2I',
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN        || 'mb-notetaker.firebaseapp.com',
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID         || 'mb-notetaker',
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET     || 'mb-notetaker.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID|| '183273569431',
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID             || '1:183273569431:web:1b8540cee13ee7fd3dbdd2',
 }
 
 /* ── Config guard ────────────────────────────────────────────────────────────
