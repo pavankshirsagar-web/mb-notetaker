@@ -42,6 +42,8 @@ export default function WorkspacePageEditor({
   onUpdatePage,
   onNavigateToProject,
   onNavigateToDashboard,
+  onNavigateToTodos,
+  onNavigateToDaily,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
@@ -99,8 +101,11 @@ export default function WorkspacePageEditor({
       <Sidebar
         projects={projects}
         activeProjectId={project?.id}
+        activeSidebarTab="projects"
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateToTodos={onNavigateToTodos}
+        onNavigateToDaily={onNavigateToDaily}
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}

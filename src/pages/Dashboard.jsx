@@ -386,6 +386,8 @@ export default function Dashboard({
   onRefreshMicDevices,
   onNavigateToProject,
   onNavigateToDashboard,
+  onNavigateToTodos,
+  onNavigateToDaily,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
@@ -410,8 +412,11 @@ export default function Dashboard({
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar
         projects={projects}
+        activeSidebarTab="projects"
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateToTodos={onNavigateToTodos}
+        onNavigateToDaily={onNavigateToDaily}
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}
@@ -481,8 +486,11 @@ export default function Dashboard({
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar
         projects={projects}
+        activeSidebarTab="projects"
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateToTodos={onNavigateToTodos}
+        onNavigateToDaily={onNavigateToDaily}
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}

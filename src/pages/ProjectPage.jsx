@@ -1940,6 +1940,8 @@ export default function ProjectPage({
   onNavigateToMeeting,
   onNavigateToProject,
   onNavigateToDashboard,
+  onNavigateToTodos,
+  onNavigateToDaily,
   onStartRecording,
   onCreateProject,
   onRenameProject,
@@ -1957,6 +1959,7 @@ export default function ProjectPage({
   onDeleteWorkspacePage,
   onEnsureDailySummaryFolder,
   onCreatePageWithContent,
+  allMeetings = [],
   currentUser = null,
   onSignOut,
 }) {
@@ -2019,9 +2022,13 @@ export default function ProjectPage({
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar
         projects={projects}
+        meetings={allMeetings}
         activeProjectId={project.id}
+        activeSidebarTab="projects"
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateToTodos={onNavigateToTodos}
+        onNavigateToDaily={onNavigateToDaily}
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}
@@ -2057,7 +2064,6 @@ export default function ProjectPage({
           {[
             { key: 'recordings', label: 'Recordings', icon: <Mic      size={13} strokeWidth={2.5} /> },
             { key: 'workspace',  label: 'Workspace',  icon: <FileText size={13} strokeWidth={2.5} /> },
-            { key: 'todos',      label: 'To-Do',      icon: <ListTodo size={13} strokeWidth={2.5} /> },
           ].map(tab => (
             <button
               key={tab.key}
@@ -2214,10 +2220,6 @@ export default function ProjectPage({
             />
           )}
 
-          {/* ── To-Do Tab ── */}
-          {activeTab === 'todos' && (
-            <TodoTab key={project.id} meetings={meetings} projectId={project.id} />
-          )}
         </div>
 
         {/* ── Delete Recording confirmation ── */}
