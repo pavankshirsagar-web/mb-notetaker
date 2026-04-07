@@ -313,8 +313,16 @@ export default function App() {
       loadedMeetings.sort((a, b) => b.id.localeCompare(a.id))
       setMeetings(loadedMeetings)
 
-      // Load workspace
-      setWorkspaceFolders(wfSnap.docs.map(d => d.data()))
+      // Load workspace — migrate any old "Daily Summary" system folder name to "Meetings Summary"
+      const loadedFolders = wfSnap.docs.map(d => d.data()).map(f => {
+        if (f.isSystemFolder && f.name !== 'Meetings Summary') {
+          const updated = { ...f, name: 'Meetings Summary' }
+          fsSaveWorkspaceFolder(uid, updated)
+          return updated
+        }
+        return f
+      })
+      setWorkspaceFolders(loadedFolders)
       setWorkspacePages(wpSnap.docs.map(d => d.data()))
     } catch (e) {
       console.error('[Firestore] loadUserData failed:', e)
@@ -1366,7 +1374,7 @@ export default function App() {
     fsSaveWorkspacePage(currentUser?.uid, updated)
   }
 
-  /** Find-or-create the protected "Daily Summary" system folder for the active project */
+  /** Find-or-create the protected "Meetings Summary" system folder for the active project */
   const handleEnsureDailySummaryFolder = () => {
     const existing = workspaceFolders.find(
       f => f.projectId === activeProjectId && f.isSystemFolder === true
@@ -1376,7 +1384,7 @@ export default function App() {
     const folder = {
       id,
       projectId:      activeProjectId,
-      name:           'Daily Summary',
+      name:           'Meetings Summary',
       isSystemFolder: true,
       createdAt:      new Date().toISOString(),
     }
