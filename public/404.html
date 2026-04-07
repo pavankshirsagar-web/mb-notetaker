@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>MB Notetaker</title>
+    <script>
+      // Redirect all 404s back to index.html for SPA routing
+      sessionStorage.setItem('redirect', location.href)
+      location.replace(location.origin + '/mb-notetaker/')
+    </script>
+  </head>
+</html>
