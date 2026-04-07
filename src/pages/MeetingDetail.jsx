@@ -206,6 +206,8 @@ export default function MeetingDetail({
   projects = [],
   onNavigateToProject,
   onNavigateToDashboard,
+  onNavigateToTodos,
+  onNavigateToDaily,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
@@ -353,8 +355,11 @@ export default function MeetingDetail({
       <Sidebar
         projects={projects}
         activeProjectId={project.id}
+        activeSidebarTab="projects"
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateToTodos={onNavigateToTodos}
+        onNavigateToDaily={onNavigateToDaily}
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}

@@ -1940,6 +1940,8 @@ export default function ProjectPage({
   onNavigateToMeeting,
   onNavigateToProject,
   onNavigateToDashboard,
+  onNavigateToTodos,
+  onNavigateToDaily,
   onStartRecording,
   onCreateProject,
   onRenameProject,
@@ -2022,8 +2024,11 @@ export default function ProjectPage({
         projects={projects}
         meetings={allMeetings}
         activeProjectId={project.id}
+        activeSidebarTab="projects"
         onNavigateToProject={onNavigateToProject}
         onNavigateToDashboard={onNavigateToDashboard}
+        onNavigateToTodos={onNavigateToTodos}
+        onNavigateToDaily={onNavigateToDaily}
         onCreateProject={onCreateProject}
         onRenameProject={onRenameProject}
         onDeleteProject={onDeleteProject}

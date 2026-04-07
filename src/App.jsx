@@ -6,6 +6,7 @@ import Dashboard           from './pages/Dashboard'
 import ProjectPage         from './pages/ProjectPage'
 import MeetingDetail       from './pages/MeetingDetail'
 import WorkspacePageEditor from './pages/WorkspacePageEditor'
+import Sidebar, { GlobalTodoTab, DailySummaryTab } from './components/Sidebar'
 import { listenAuthState, signOutUser, firebaseConfigured, db } from './lib/firebase'
 import {
   collection, doc, getDocs, setDoc, deleteDoc, writeBatch,
@@ -1087,6 +1088,8 @@ export default function App() {
     if (isRecordingRef.current && !pipWindowRef.current) openPiP()
   }
   const navToDashboard = () => setPage('dashboard')
+  const navToTodos     = () => setPage('todos')
+  const navToDaily     = () => setPage('daily')
 
   /* ── Workspace page navigation ── */
   const navToWorkspacePage = (id) => {
@@ -1465,6 +1468,8 @@ export default function App() {
           onRecoverySaveAndStart={handleSaveAndStartNew}
           onNavigateToProject={navToProject}
           onNavigateToDashboard={navToDashboard}
+          onNavigateToTodos={navToTodos}
+          onNavigateToDaily={navToDaily}
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
@@ -1472,6 +1477,52 @@ export default function App() {
           onSignOut={signOutUser}
           waveHeights={waveHeights}
         />
+      )}
+
+      {/* ── To-Do page ── */}
+      {page === 'todos' && (
+        <div className="flex h-screen bg-gray-50 overflow-hidden">
+          <Sidebar
+            projects={projects}
+            meetings={meetings}
+            activeSidebarTab="todos"
+            onNavigateToProject={navToProject}
+            onNavigateToDashboard={navToDashboard}
+            onNavigateToTodos={navToTodos}
+            onNavigateToDaily={navToDaily}
+            onCreateProject={handleCreateProject}
+            onRenameProject={handleRenameProject}
+            onDeleteProject={handleDeleteProject}
+            currentUser={currentUser}
+            onSignOut={signOutUser}
+          />
+          <main className="flex-1 overflow-hidden flex flex-col">
+            <GlobalTodoTab projects={projects} meetings={meetings} activeProjectId={null} fullPage />
+          </main>
+        </div>
+      )}
+
+      {/* ── Daily Summary page ── */}
+      {page === 'daily' && (
+        <div className="flex h-screen bg-gray-50 overflow-hidden">
+          <Sidebar
+            projects={projects}
+            meetings={meetings}
+            activeSidebarTab="daily"
+            onNavigateToProject={navToProject}
+            onNavigateToDashboard={navToDashboard}
+            onNavigateToTodos={navToTodos}
+            onNavigateToDaily={navToDaily}
+            onCreateProject={handleCreateProject}
+            onRenameProject={handleRenameProject}
+            onDeleteProject={handleDeleteProject}
+            currentUser={currentUser}
+            onSignOut={signOutUser}
+          />
+          <main className="flex-1 overflow-hidden flex flex-col">
+            <DailySummaryTab projects={projects} meetings={meetings} fullPage />
+          </main>
+        </div>
       )}
 
       {page === 'project' && (
@@ -1482,6 +1533,8 @@ export default function App() {
           onNavigateToMeeting={navToMeeting}
           onNavigateToProject={navToProject}
           onNavigateToDashboard={navToDashboard}
+          onNavigateToTodos={navToTodos}
+          onNavigateToDaily={navToDaily}
           onStartRecording={openRecordingSetupFromProject}
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
@@ -1514,6 +1567,8 @@ export default function App() {
           projects={projects}
           onNavigateToProject={navToProject}
           onNavigateToDashboard={navToDashboard}
+          onNavigateToTodos={navToTodos}
+          onNavigateToDaily={navToDaily}
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}
@@ -1533,6 +1588,8 @@ export default function App() {
           onUpdatePage={handleUpdateWorkspacePage}
           onNavigateToProject={navToProject}
           onNavigateToDashboard={navToDashboard}
+          onNavigateToTodos={navToTodos}
+          onNavigateToDaily={navToDaily}
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
           onDeleteProject={handleDeleteProject}

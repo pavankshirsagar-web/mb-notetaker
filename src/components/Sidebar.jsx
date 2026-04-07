@@ -4,7 +4,7 @@ import {
   Plus, Folder, MoreHorizontal, Pencil, Trash2, X, Search,
   ListTodo, BookOpen, ChevronDown, ChevronRight,
   Square, SquareCheck, CalendarDays, Sparkles,
-  RefreshCw, Check, Mic, FolderOpen,
+  RefreshCw,
 } from 'lucide-react'
 
 /* ─── Portal project ⋯ menu ──────────────────────────────────────────────── */
@@ -44,7 +44,7 @@ function fmtKey(dk) {
 /* ═══════════════════════════════════════════════════════════════════════════
    TAB 1 — GLOBAL TO-DO LIST
 ═══════════════════════════════════════════════════════════════════════════ */
-function GlobalTodoTab({ projects, meetings, activeProjectId }) {
+export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = false }) {
   const todayKey = new Date().toISOString().split('T')[0]
 
   /* ── read/write helpers ─────────────────────────────────────────────── */
@@ -193,7 +193,19 @@ function GlobalTodoTab({ projects, meetings, activeProjectId }) {
 
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col h-full overflow-y-auto py-3 px-3 gap-6">
+    <div className="flex flex-col h-full overflow-hidden">
+      {fullPage && (
+        <div className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100 flex-shrink-0">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#7133AE12' }}>
+            <ListTodo size={16} style={{ color: '#7133AE' }} />
+          </div>
+          <div>
+            <h1 className="text-gray-900 font-semibold text-base leading-tight">To-Do</h1>
+            <p className="text-xs text-gray-400 leading-tight">Tasks across all your projects</p>
+          </div>
+        </div>
+      )}
+    <div className="flex flex-col flex-1 overflow-y-auto py-3 px-3 gap-6">
       {allKeys.map(dk => {
         const dayTasks  = byDay[dk] || []
         const doneCount = dayTasks.filter(t => t.done).length
@@ -216,9 +228,11 @@ function GlobalTodoTab({ projects, meetings, activeProjectId }) {
               </div>
               {isToday && (
                 <button onClick={() => setAddingDay(dk)}
-                  className="flex items-center gap-0.5 text-[10px] font-semibold cursor-pointer transition-colors"
-                  style={{ color: '#7133AE' }}>
-                  <Plus size={11} strokeWidth={2.5} />
+                  className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-all px-2.5 py-1 rounded-lg border"
+                  style={{ color: '#7133AE', borderColor: '#7133AE40', backgroundColor: 'transparent' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE0A'; e.currentTarget.style.borderColor = '#7133AE80' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = '#7133AE40' }}>
+                  <Plus size={10} strokeWidth={2.5} />
                   Add
                 </button>
               )}
@@ -228,7 +242,7 @@ function GlobalTodoTab({ projects, meetings, activeProjectId }) {
             <div className="flex flex-col gap-1.5">
               {dayTasks.length === 0 && !addingDay && isToday && (
                 <button onClick={() => setAddingDay(dk)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-xs text-gray-400 cursor-pointer w-full text-left transition-colors"
+                  className="flex items-center gap-2 px-3 py-3 rounded-xl border border-dashed text-xs text-gray-400 cursor-pointer w-full text-left transition-colors"
                   style={{ borderColor: '#e5e7eb' }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#7133AE40' }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb' }}>
@@ -242,29 +256,24 @@ function GlobalTodoTab({ projects, meetings, activeProjectId }) {
 
               {dayTasks.map(task => (
                 <div key={task.id}
-                  className="group flex items-start gap-2 px-2.5 py-2 rounded-lg bg-white border transition-all"
-                  style={{ borderColor: '#f3f4f6' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#7133AE20' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#f3f4f6' }}>
+                  className="group flex items-center gap-2.5 px-3 py-3 rounded-xl border transition-all"
+                  style={{
+                    backgroundColor: task.done ? '#fafafa' : '#ffffff',
+                    borderColor: task.done ? '#f0f0f0' : '#f3f4f6',
+                    opacity: task.done ? 0.65 : 1,
+                  }}
+                  onMouseEnter={(e) => { if (!task.done) e.currentTarget.style.borderColor = '#7133AE20' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = task.done ? '#f0f0f0' : '#f3f4f6' }}>
 
                   {/* Checkbox */}
                   <button onClick={() => toggleDone(task)}
-                    className="flex-shrink-0 mt-0.5 cursor-pointer transition-colors"
-                    style={{ color: task.done ? '#7133AE' : '#d1d5db' }}>
-                    {task.done ? <SquareCheck size={15} strokeWidth={2} /> : <Square size={15} strokeWidth={1.5} />}
+                    className="flex-shrink-0 cursor-pointer transition-colors"
+                    style={{ color: task.done ? '#d1d5db' : '#d1d5db' }}>
+                    {task.done ? <SquareCheck size={15} strokeWidth={2} style={{ color: '#9ca3af' }} /> : <Square size={15} strokeWidth={1.5} />}
                   </button>
 
-                  {/* Content */}
+                  {/* Task text — inline edit for today */}
                   <div className="flex-1 min-w-0">
-                    {/* Project chip */}
-                    {task.projectName && (
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold mb-0.5 leading-tight"
-                        style={{ backgroundColor: '#7133AE0F', color: '#7133AE' }}>
-                        {task.projectName}
-                      </span>
-                    )}
-
-                    {/* Task text — inline edit for today */}
                     {editingId === task.id ? (
                       <input value={editText} onChange={(e) => setEditText(e.target.value)}
                         onBlur={() => commitEdit(task)}
@@ -274,18 +283,31 @@ function GlobalTodoTab({ projects, meetings, activeProjectId }) {
                         style={{ borderColor: '#7133AE' }}
                       />
                     ) : (
-                      <p className="text-xs leading-snug break-words"
-                        style={{ color: task.done ? '#9ca3af' : '#374151', textDecoration: task.done ? 'line-through' : 'none', cursor: isToday ? 'text' : 'default' }}
-                        onDoubleClick={() => { if (isToday) { setEditingId(task.id); setEditText(task.text) } }}>
+                      <p className="text-xs leading-snug truncate"
+                        style={{
+                          color: task.done ? '#b0b7c3' : '#374151',
+                          textDecoration: task.done ? 'line-through' : 'none',
+                          textDecorationColor: '#c4c9d4',
+                          cursor: isToday && !task.done ? 'text' : 'default',
+                        }}
+                        onDoubleClick={() => { if (isToday && !task.done) { setEditingId(task.id); setEditText(task.text) } }}>
                         {task.text}
                       </p>
                     )}
                   </div>
 
+                  {/* Project chip — neutral color, end of row */}
+                  {task.projectName && (
+                    <span className="flex-shrink-0 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight"
+                      style={{ backgroundColor: '#f3f4f6', color: '#6b7280' }}>
+                      {task.projectName}
+                    </span>
+                  )}
+
                   {/* Delete — today only, on hover */}
-                  {isToday && (
+                  {isToday && !task.done && (
                     <button onClick={() => deleteTask(task)}
-                      className="flex-shrink-0 w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer mt-0.5">
+                      className="flex-shrink-0 w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                       <X size={11} className="text-gray-400 hover:text-red-500 transition-colors" />
                     </button>
                   )}
@@ -294,7 +316,7 @@ function GlobalTodoTab({ projects, meetings, activeProjectId }) {
 
               {/* Inline add row — today only */}
               {addingDay === dk && isToday && (
-                <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white border"
+                <div className="flex items-center gap-2 px-3 py-3 rounded-xl bg-white border"
                   style={{ borderColor: '#7133AE40' }}>
                   <Square size={15} strokeWidth={1.5} className="text-gray-300 flex-shrink-0" />
                   <input ref={inputRef} value={newText}
@@ -311,13 +333,14 @@ function GlobalTodoTab({ projects, meetings, activeProjectId }) {
         )
       })}
     </div>
+    </div>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TAB 2 — DAILY SUMMARIES
 ═══════════════════════════════════════════════════════════════════════════ */
-function DailySummaryTab({ projects, meetings }) {
+export function DailySummaryTab({ projects, meetings, fullPage = false }) {
   const todayKey = new Date().toISOString().split('T')[0]
 
   const loadSummaries = () => { try { return JSON.parse(localStorage.getItem('mb_day_summaries') || '{}') } catch { return {} } }
@@ -397,7 +420,19 @@ function DailySummaryTab({ projects, meetings }) {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto py-3 px-3 gap-6">
+    <div className="flex flex-col h-full overflow-hidden">
+      {fullPage && (
+        <div className="flex items-center gap-3 px-6 py-4 bg-white border-b border-gray-100 flex-shrink-0">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#7133AE12' }}>
+            <BookOpen size={16} style={{ color: '#7133AE' }} />
+          </div>
+          <div>
+            <h1 className="text-gray-900 font-semibold text-base leading-tight">Summary</h1>
+            <p className="text-xs text-gray-400 leading-tight">AI-generated daily summaries of your meetings</p>
+          </div>
+        </div>
+      )}
+    <div className="flex flex-col flex-1 overflow-y-auto py-3 px-3 gap-6">
       {allDays.map(dk => {
         const dayMeetings = meetingsForDay(dk)
         if (dk !== todayKey && !dayMeetings.length) return null
@@ -509,14 +544,14 @@ function DailySummaryTab({ projects, meetings }) {
         )
       })}
     </div>
+    </div>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   TAB 3 — PROJECTS
+   TAB 3 — PROJECTS  (inline list only — accordion toggle lives in nav row)
 ═══════════════════════════════════════════════════════════════════════════ */
-function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateProject, onRenameProject, onDeleteProject }) {
-  const [expanded,     setExpanded]     = useState(true)
+function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateProject, onRenameProject, onDeleteProject, createTick }) {
   const [hoveredId,    setHoveredId]    = useState(null)
   const [openMenuId,   setOpenMenuId]   = useState(null)
   const [menuAnchor,   setMenuAnchor]   = useState(null)
@@ -527,6 +562,7 @@ function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateP
   const menuRef   = useRef(null)
   const renameRef = useRef(null)
 
+  /* Close portal menu on outside click */
   useEffect(() => {
     if (!openMenuId) return
     const h = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) { setOpenMenuId(null); setMenuAnchor(null) } }
@@ -534,14 +570,17 @@ function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateP
     return () => document.removeEventListener('mousedown', h)
   }, [openMenuId])
 
+  /* Focus rename input when opened */
   useEffect(() => {
     if (renamingId && renameRef.current) renameRef.current.focus()
   }, [renamingId])
 
-  const handleNewProject = () => {
+  /* Triggered by "+ New" button in the parent nav row */
+  useEffect(() => {
+    if (!createTick) return
     const id = onCreateProject?.()
     if (id != null) { setRenamingId(id); setRenameValue('New Project') }
-  }
+  }, [createTick]) // eslint-disable-line
 
   const openMenu = (e, pid) => {
     e.stopPropagation()
@@ -555,131 +594,100 @@ function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateP
     setRenamingId(null)
   }
 
-  const activeMenu    = openMenuId ? projects.find(p => p.id === openMenuId) : null
-  const filtered      = projects.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const activeMenu = openMenuId ? projects.find(p => p.id === openMenuId) : null
+  const filtered   = projects.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   return (
     <>
-      <div className="flex flex-col h-full overflow-hidden">
+      {/* Search — only when > 3 projects */}
+      {projects.length > 3 && (
+        <div className="px-3 pt-1 pb-1">
+          <div className="relative">
+            <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search projects…"
+              className="w-full pl-6 pr-2.5 py-1.5 text-xs rounded-lg bg-gray-50 border border-gray-100 text-gray-700 placeholder-gray-400 outline-none focus:border-purple-300 transition-colors"
+            />
+          </div>
+        </div>
+      )}
 
-        {/* Accordion header */}
-        <button onClick={() => setExpanded(v => !v)}
-          className="flex items-center justify-between px-4 py-3 flex-shrink-0 cursor-pointer hover:bg-gray-50 transition-colors"
-          style={{ borderBottom: expanded ? '1px solid #f3f4f6' : 'none' }}>
-          <div className="flex items-center gap-2">
-            <FolderOpen size={14} strokeWidth={2} className="text-gray-400" />
-            <span className="text-xs font-semibold text-gray-600">Projects</span>
-            {projects.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-500">
-                {projects.length}
-              </span>
-            )}
+      {/* Project list */}
+      <div className="flex flex-col gap-0.5 px-2 pb-2 max-h-[55vh] overflow-y-auto">
+
+        {/* New project — always at top, styled like a project item */}
+        <button onClick={() => { const id = onCreateProject?.(); if (id != null) { setRenamingId(id); setRenameValue('New Project') } }}
+          className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-left w-full transition-all duration-150 cursor-pointer hover:bg-gray-50 group/new">
+          <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100 group-hover/new:bg-purple-50 transition-colors">
+            <Plus size={11} strokeWidth={2.5} className="text-gray-400 group-hover/new:text-purple-500 transition-colors" />
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={(e) => { e.stopPropagation(); handleNewProject() }}
-              className="flex items-center gap-0.5 text-[11px] font-medium cursor-pointer transition-colors px-1.5 py-0.5 rounded hover:bg-purple-50"
-              style={{ color: '#7133AE' }}>
-              <Plus size={11} strokeWidth={2.5} />
-              New
-            </button>
-            {expanded
-              ? <ChevronDown size={13} className="text-gray-400" />
-              : <ChevronRight size={13} className="text-gray-400" />
-            }
-          </div>
+          <span className="text-xs font-medium text-gray-400 group-hover/new:text-purple-600 transition-colors">New project</span>
         </button>
 
-        {expanded && (
-          <div className="flex flex-col overflow-hidden flex-1">
-            {/* Search */}
-            {projects.length > 3 && (
-              <div className="px-3 pt-2 pb-1 flex-shrink-0">
-                <div className="relative">
-                  <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search projects…"
-                    className="w-full pl-6 pr-2.5 py-1.5 text-xs rounded-lg bg-gray-50 border border-gray-100 text-gray-700 placeholder-gray-400 outline-none focus:border-purple-300 transition-colors"
+        {filtered.map(project => {
+          const isActive   = project.id === activeProjectId
+          const isHovered  = hoveredId === project.id
+          const isRenaming = renamingId === project.id
+          const menuOpen   = openMenuId === project.id
+
+          return (
+            <div key={project.id} className="relative"
+              onMouseEnter={() => setHoveredId(project.id)}
+              onMouseLeave={() => setHoveredId(null)}>
+              <button onClick={() => { if (!isRenaming) onNavigateToProject?.(project.id) }}
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-left w-full transition-all duration-150 cursor-pointer"
+                style={{ backgroundColor: isActive ? '#7133AE0F' : isHovered || menuOpen ? '#f9fafb' : 'transparent' }}>
+
+                <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: isActive ? '#7133AE1A' : '#f3f4f6' }}>
+                  <Folder size={11} strokeWidth={2} style={{ color: isActive ? '#7133AE' : '#9ca3af' }} />
+                </div>
+
+                {isRenaming ? (
+                  <input ref={renameRef} value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenamingId(null); e.stopPropagation() }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-1 text-xs font-medium bg-white border border-gray-300 rounded px-1 py-0.5 outline-none focus:border-purple-400 min-w-0"
                   />
-                </div>
-              </div>
-            )}
+                ) : (
+                  <span className="text-xs font-medium flex-1 truncate"
+                    style={{ color: isActive ? '#7133AE' : '#374151' }}>
+                    {project.name}
+                  </span>
+                )}
 
-            {/* Project list */}
-            <nav className="flex flex-col gap-0.5 overflow-y-auto flex-1 px-2 py-2">
-              {filtered.map(project => {
-                const isActive   = project.id === activeProjectId
-                const isHovered  = hoveredId === project.id
-                const isRenaming = renamingId === project.id
-                const menuOpen   = openMenuId === project.id
-
-                return (
-                  <div key={project.id} className="relative"
-                    onMouseEnter={() => setHoveredId(project.id)}
-                    onMouseLeave={() => setHoveredId(null)}>
-                    <button onClick={() => { if (!isRenaming) onNavigateToProject?.(project.id) }}
-                      className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-left w-full transition-all duration-150 cursor-pointer"
-                      style={{ backgroundColor: isActive ? '#7133AE0F' : isHovered || menuOpen ? '#f9fafb' : 'transparent' }}>
-
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
-                        <Folder size={11} strokeWidth={2} className="text-gray-400" />
-                      </div>
-
-                      {isRenaming ? (
-                        <input ref={renameRef} value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onBlur={commitRename}
-                          onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenamingId(null); e.stopPropagation() }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex-1 text-xs font-medium bg-white border border-gray-300 rounded px-1 py-0.5 outline-none focus:border-purple-400 min-w-0"
-                        />
-                      ) : (
-                        <span className="text-xs font-medium flex-1 truncate transition-colors"
-                          style={{ color: isActive ? '#7133AE' : '#374151' }}>
-                          {project.name}
-                        </span>
-                      )}
-
-                      {!isRenaming && (isHovered || menuOpen) && (
-                        <button onClick={(e) => openMenu(e, project.id)}
-                          className="flex items-center justify-center w-4 h-4 rounded transition-colors cursor-pointer flex-shrink-0"
-                          style={{ backgroundColor: menuOpen ? '#f3e8ff' : 'transparent', color: menuOpen ? '#7133AE' : 'rgba(107,114,128,0.7)' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3e8ff'; e.currentTarget.style.color = '#7133AE' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = menuOpen ? '#f3e8ff' : 'transparent'; e.currentTarget.style.color = menuOpen ? '#7133AE' : 'rgba(107,114,128,0.7)' }}>
-                          <MoreHorizontal size={11} />
-                        </button>
-                      )}
-                    </button>
-                  </div>
-                )
-              })}
-
-              {/* Empty state */}
-              {projects.length === 0 && (
-                <div className="flex flex-col items-center gap-2 py-8 px-3 text-center">
-                  <Folder size={28} strokeWidth={1.5} className="text-gray-200" />
-                  <p className="text-xs text-gray-400 leading-snug">No projects yet.<br />Create one to get started.</p>
-                  <button onClick={handleNewProject}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer transition-colors"
-                    style={{ backgroundColor: '#7133AE' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}>
-                    <Plus size={12} strokeWidth={2.5} />
-                    Create Project
+                {!isRenaming && (isHovered || menuOpen) && (
+                  <button onClick={(e) => openMenu(e, project.id)}
+                    className="flex items-center justify-center w-4 h-4 rounded transition-colors cursor-pointer flex-shrink-0"
+                    style={{ backgroundColor: menuOpen ? '#f3e8ff' : 'transparent', color: menuOpen ? '#7133AE' : 'rgba(107,114,128,0.7)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3e8ff'; e.currentTarget.style.color = '#7133AE' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = menuOpen ? '#f3e8ff' : 'transparent'; e.currentTarget.style.color = menuOpen ? '#7133AE' : 'rgba(107,114,128,0.7)' }}>
+                    <MoreHorizontal size={11} />
                   </button>
-                </div>
-              )}
+                )}
+              </button>
+            </div>
+          )
+        })}
 
-              {searchQuery && filtered.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-4 px-2">
-                  No projects match "<span className="font-medium">{searchQuery}</span>"
-                </p>
-              )}
-            </nav>
+        {/* Empty state */}
+        {projects.length === 0 && (
+          <div className="flex flex-col items-center gap-1.5 py-5 px-3 text-center">
+            <Folder size={22} strokeWidth={1.5} className="text-gray-200" />
+            <p className="text-[11px] text-gray-400 leading-snug">No projects yet.</p>
           </div>
+        )}
+
+        {searchQuery && filtered.length === 0 && (
+          <p className="text-[11px] text-gray-400 text-center py-3 px-2">
+            No match for "<span className="font-medium">{searchQuery}</span>"
+          </p>
         )}
       </div>
 
-      {/* Portal menus */}
+      {/* Portal context menu */}
       {activeMenu && menuAnchor && (
         <ProjectMenu project={activeMenu} anchorRect={menuAnchor} menuRef={menuRef}
           onRename={(p) => { setOpenMenuId(null); setMenuAnchor(null); setRenamingId(p.id); setRenameValue(p.name) }}
@@ -688,6 +696,7 @@ function ProjectsTab({ projects, activeProjectId, onNavigateToProject, onCreateP
         />
       )}
 
+      {/* Delete confirm modal */}
       {deleteTarget && createPortal(
         <div className="fixed inset-0 z-[9998] flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
@@ -733,21 +742,19 @@ export default function Sidebar({
   projects = [],
   meetings = [],
   activeProjectId = null,
+  activeSidebarTab = 'projects',
   onNavigateToProject,
   onNavigateToDashboard,
+  onNavigateToTodos,
+  onNavigateToDaily,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
   currentUser = null,
   onSignOut,
 }) {
-  const [activeTab, setActiveTab] = useState('projects')
-
-  const tabs = [
-    { id: 'todos',    label: 'To-Do',   Icon: ListTodo  },
-    { id: 'daily',    label: 'Summary', Icon: BookOpen  },
-    { id: 'projects', label: 'Projects', Icon: Folder   },
-  ]
+  const [projectsExpanded, setProjectsExpanded] = useState(true)
+  const [createProjTick,   setCreateProjTick]   = useState(0)
 
   return (
     <aside className="flex flex-col h-screen w-[272px] flex-shrink-0 border-r border-gray-100 bg-white">
@@ -768,33 +775,49 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex border-b border-gray-100 flex-shrink-0">
-        {tabs.map(({ id, label, Icon }) => {
-          const active = activeTab === id
-          return (
-            <button key={id} onClick={() => setActiveTab(id)}
-              className="flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold transition-colors cursor-pointer relative"
-              style={{ color: active ? '#7133AE' : '#9ca3af' }}>
-              <Icon size={15} strokeWidth={active ? 2.5 : 2} />
-              {label}
-              {active && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full" style={{ backgroundColor: '#7133AE' }} />
-              )}
-            </button>
-          )
-        })}
-      </div>
+      {/* ── Vertical nav ──────────────────────────────────────────────────── */}
+      <nav className="flex flex-col gap-0.5 px-2 pt-3 flex-shrink-0">
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {activeTab === 'todos' && (
-          <GlobalTodoTab projects={projects} meetings={meetings} activeProjectId={activeProjectId} />
-        )}
-        {activeTab === 'daily' && (
-          <DailySummaryTab projects={projects} meetings={meetings} />
-        )}
-        {activeTab === 'projects' && (
+        {/* To-Do row — navigates to main content */}
+        <button onClick={() => onNavigateToTodos?.()}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-left w-full"
+          style={{ backgroundColor: activeSidebarTab === 'todos' ? '#7133AE0F' : 'transparent', color: activeSidebarTab === 'todos' ? '#7133AE' : '#6b7280' }}
+          onMouseEnter={(e) => { if (activeSidebarTab !== 'todos') e.currentTarget.style.backgroundColor = '#f9fafb' }}
+          onMouseLeave={(e) => { if (activeSidebarTab !== 'todos') e.currentTarget.style.backgroundColor = 'transparent' }}>
+          <ListTodo size={16} strokeWidth={activeSidebarTab === 'todos' ? 2.5 : 2} className="flex-shrink-0" />
+          <span className="flex-1">To-Do</span>
+        </button>
+
+        {/* Summary row — navigates to main content */}
+        <button onClick={() => onNavigateToDaily?.()}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-left w-full"
+          style={{ backgroundColor: activeSidebarTab === 'daily' ? '#7133AE0F' : 'transparent', color: activeSidebarTab === 'daily' ? '#7133AE' : '#6b7280' }}
+          onMouseEnter={(e) => { if (activeSidebarTab !== 'daily') e.currentTarget.style.backgroundColor = '#f9fafb' }}
+          onMouseLeave={(e) => { if (activeSidebarTab !== 'daily') e.currentTarget.style.backgroundColor = 'transparent' }}>
+          <BookOpen size={16} strokeWidth={activeSidebarTab === 'daily' ? 2.5 : 2} className="flex-shrink-0" />
+          <span className="flex-1">Summary</span>
+        </button>
+
+        {/* Projects row — inline accordion */}
+        <button onClick={() => setProjectsExpanded(v => !v)}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-left w-full"
+          style={{ backgroundColor: activeSidebarTab === 'projects' ? '#7133AE0F' : 'transparent', color: activeSidebarTab === 'projects' ? '#7133AE' : '#6b7280' }}
+          onMouseEnter={(e) => { if (activeSidebarTab !== 'projects') e.currentTarget.style.backgroundColor = '#f9fafb' }}
+          onMouseLeave={(e) => { if (activeSidebarTab !== 'projects') e.currentTarget.style.backgroundColor = 'transparent' }}>
+          <Folder size={16} strokeWidth={activeSidebarTab === 'projects' ? 2.5 : 2} className="flex-shrink-0" />
+          <span>Projects</span>
+          {projects.length > 0 && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{projects.length}</span>
+          )}
+          <span className="flex-1" />
+          {projectsExpanded
+            ? <ChevronDown size={13} className="flex-shrink-0 text-purple-400" />
+            : <ChevronRight size={13} className="flex-shrink-0 text-gray-400" />
+          }
+        </button>
+
+        {/* Inline project list */}
+        {projectsExpanded && (
           <ProjectsTab
             projects={projects}
             activeProjectId={activeProjectId}
@@ -802,9 +825,13 @@ export default function Sidebar({
             onCreateProject={onCreateProject}
             onRenameProject={onRenameProject}
             onDeleteProject={onDeleteProject}
+            createTick={createProjTick}
           />
         )}
-      </div>
+      </nav>
+
+      {/* Spacer — pushes profile to bottom */}
+      <div className="flex-1" />
 
       {/* User profile */}
       <div className="border-t border-gray-100 px-3 py-3 flex-shrink-0">
