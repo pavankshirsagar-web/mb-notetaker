@@ -427,12 +427,12 @@ export default function Dashboard({
       <main className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
         <IdleIllustration />
 
-        <div className="text-center max-w-xs">
-          <p className="text-gray-800 font-semibold text-lg leading-snug mb-1">
-            Your next great idea is one recording away.
+        <div className="text-center ">
+          <p className="text-gray-800 font-semibold text-lg leading-snug mb-1 whitespace-nowrap">
+            SStay focused. Let every meeting turn into clear notes.
           </p>
-          <p className="text-gray-400 text-sm leading-relaxed">
-            Start a meeting and let AI handle the notes, transcription, and summary for you.
+          <p className="text-gray-400 text-sm leading-relaxed max-w-md" >
+            Record your meetings and let AI capture transcripts, summaries, and action items automatically.
           </p>
         </div>
 
