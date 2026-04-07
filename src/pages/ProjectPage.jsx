@@ -1061,7 +1061,7 @@ function WorkspaceTab({
   const filteredFolders = folders
     .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
-      // System folder (Daily Summary) always first
+      // System folder (Meetings Summary) always first
       if (a.isSystemFolder && !b.isSystemFolder) return -1
       if (!a.isSystemFolder && b.isSystemFolder) return  1
       return 0
@@ -1182,10 +1182,9 @@ function WorkspaceTab({
 
                   {/* System folder: show lock pill; normal folder: show ⋯ on hover */}
                   {isSystem ? (
-                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0"
-                      style={{ backgroundColor: '#7133AE12', color: '#7133AE' }}>
-                      <Lock size={8} strokeWidth={2.5} />
-                      Auto
+                    <span className="flex items-center justify-center w-5 h-5 rounded flex-shrink-0"
+                      style={{ color: '#7133AE' }}>
+                      <Lock size={11} strokeWidth={2.5} />
                     </span>
                   ) : (
                     !isRenaming && (isHovered || menuOpen) && (
@@ -1379,7 +1378,7 @@ function buildDaySummary(meetings) {
 /** Generate Tiptap-compatible HTML for the workspace page */
 function buildDaySummaryHTML(dateKey, summary) {
   const dateLabel = formatPageDate(dateKey)
-  let html = `<h1>${dateLabel} — Daily Summary</h1>`
+  let html = `<h1>${dateLabel} — Meetings Summary</h1>`
   html += `<p><strong>${summary.meetingCount} meeting${summary.meetingCount > 1 ? 's' : ''}</strong> held on this day.</p>`
 
   // Meetings list
@@ -1572,7 +1571,7 @@ function DaySummaryModal({ dateKey, meetings, onClose, onStoreInWorkspace, stori
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 flex-shrink-0 bg-gray-50">
           <p className="text-xs text-gray-400 flex items-center gap-1.5">
             <FolderLock size={12} strokeWidth={2} />
-            Saves to <span className="font-medium text-gray-500">Daily Summary</span> folder
+            Saves to <span className="font-medium text-gray-500">Meetings Summary</span> folder
           </p>
           <div className="flex items-center gap-2.5">
             <button
@@ -1753,6 +1752,7 @@ function TodoTab({ meetings, projectId }) {
       {allKeys.map(dk => {
         const dt        = dayTasks(dk)
         const doneCount = dt.filter(t => t.done).length
+        const isToday   = dk === todayKey   // only today allows adding tasks
 
         return (
           <section key={dk}>
@@ -1772,31 +1772,39 @@ function TodoTab({ meetings, projectId }) {
                   </span>
                 )}
               </div>
-              <button
-                onClick={() => openAddRow(dk)}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors flex-shrink-0"
-                style={{ color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE08' }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE15' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE08' }}
-              >
-                <Plus size={12} strokeWidth={2.5} />
-                Add Task
-              </button>
+              {/* Add Task — today only */}
+              {isToday && (
+                <button
+                  onClick={() => openAddRow(dk)}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors flex-shrink-0"
+                  style={{ color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE08' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE15' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE08' }}
+                >
+                  <Plus size={12} strokeWidth={2.5} />
+                  Add Task
+                </button>
+              )}
             </div>
 
             {/* ── Task list ── */}
             <div className="flex flex-col gap-2">
+              {/* Empty state — clickable only for today */}
               {dt.length === 0 && addingDay !== dk && (
-                <div
-                  className="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl border border-dashed cursor-pointer transition-colors"
-                  style={{ borderColor: '#e5e7eb' }}
-                  onClick={() => openAddRow(dk)}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#7133AE40' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb' }}
-                >
-                  <Square size={16} strokeWidth={1.5} className="text-gray-300 flex-shrink-0" />
-                  <span className="text-sm text-gray-400">Click to add a task for this day…</span>
-                </div>
+                isToday ? (
+                  <div
+                    className="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl border border-dashed cursor-pointer transition-colors"
+                    style={{ borderColor: '#e5e7eb' }}
+                    onClick={() => openAddRow(dk)}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#7133AE40' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb' }}
+                  >
+                    <Square size={16} strokeWidth={1.5} className="text-gray-300 flex-shrink-0" />
+                    <span className="text-sm text-gray-400">Click to add a task for today…</span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-300 px-1">No tasks recorded for this day.</p>
+                )
               )}
 
               {dt.map(task => (
@@ -1836,13 +1844,14 @@ function TodoTab({ meetings, projectId }) {
                       />
                     ) : (
                       <p
-                        className="text-sm leading-snug cursor-text select-none"
+                        className="text-sm leading-snug select-none"
                         style={{
                           color:          task.done ? '#9ca3af' : '#374151',
                           textDecoration: task.done ? 'line-through' : 'none',
+                          cursor:         isToday ? 'text' : 'default',
                         }}
-                        onDoubleClick={() => startEdit(task)}
-                        title="Double-click to edit"
+                        onDoubleClick={() => isToday && startEdit(task)}
+                        title={isToday ? 'Double-click to edit' : undefined}
                       >
                         {task.text}
                       </p>
@@ -1857,7 +1866,8 @@ function TodoTab({ meetings, projectId }) {
                     )}
                   </div>
 
-                  {/* Edit + Delete — visible on hover */}
+                  {/* Edit + Delete — only for today's tasks */}
+                  {isToday && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
                     <button
                       onClick={() => startEdit(task)}
@@ -1874,11 +1884,12 @@ function TodoTab({ meetings, projectId }) {
                       <Trash2 size={12} className="text-gray-300 hover:text-red-500 transition-colors" />
                     </button>
                   </div>
+                  )}
                 </div>
               ))}
 
-              {/* Inline add-task row */}
-              {addingDay === dk && (
+              {/* Inline add-task row — today only */}
+              {addingDay === dk && isToday && (
                 <div
                   className="flex items-center gap-3 px-5 py-3.5 bg-white rounded-2xl border shadow-sm"
                   style={{ borderColor: '#7133AE40' }}
@@ -2104,7 +2115,7 @@ export default function ProjectPage({
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {/* Summarize Day CTA — shown whenever the day has any meetings */}
+                        {/* Summarize Meeting(s) CTA — shown whenever the day has any meetings */}
                         {dayMeetings.length > 0 && (
                           <button
                             onClick={() => { setDaySummaryModal({ dateKey, meetings: dayMeetings }); setStoredSummary(false) }}
@@ -2115,7 +2126,7 @@ export default function ProjectPage({
                             title={hasSummary ? 'View cumulative summary for this day' : 'Summaries still generating…'}
                           >
                             <BookOpen size={12} strokeWidth={2.5} />
-                            Summarize Day
+                            {dayMeetings.length === 1 ? 'Summarize Meeting' : 'Summarize Meetings'}
                           </button>
                         )}
                         {dateKey === todayKey && (
@@ -2269,7 +2280,7 @@ export default function ProjectPage({
             style={{ backgroundColor: '#16a34a' }}
           >
             <Check size={15} strokeWidth={2.5} />
-            Summary saved to Daily Summary folder
+            Summary saved to Meetings Summary folder
           </div>,
           document.body
         )}
