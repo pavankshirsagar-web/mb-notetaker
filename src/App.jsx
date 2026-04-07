@@ -1499,6 +1499,7 @@ export default function App() {
           onCreatePageWithContent={handleCreatePageWithContent}
           onDeleteMeeting={handleDeleteMeeting}
           onDeleteWorkspacePage={handleDeleteWorkspacePage}
+          allMeetings={meetings}
           currentUser={currentUser}
           onSignOut={signOutUser}
         />
