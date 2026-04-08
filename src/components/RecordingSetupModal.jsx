@@ -108,13 +108,17 @@ export default function RecordingSetupModal({
       .catch(() => navigator.mediaDevices.enumerateDevices())
       .then(all => {
         const mics = all.filter(d => d.kind === 'audioinput')
-        setDevices(mics)
-        /* Pre-select first real (non-default, non-communications) device */
+        /* Sort: system default first, communications last, rest in between */
+        const sorted = [
+          ...mics.filter(d => d.deviceId === 'default'),
+          ...mics.filter(d => d.deviceId !== 'default' && d.deviceId !== 'communications'),
+          ...mics.filter(d => d.deviceId === 'communications'),
+        ]
+        setDevices(sorted)
+        /* Pre-select the system default device */
         if (!isRefresh) {
-          const preferred = mics.find(
-            d => d.deviceId !== 'default' && d.deviceId !== 'communications'
-          )
-          setSelectedId(preferred?.deviceId ?? mics[0]?.deviceId ?? 'default')
+          const defaultMic = sorted.find(d => d.deviceId === 'default')
+          setSelectedId(defaultMic?.deviceId ?? sorted[0]?.deviceId ?? 'default')
         }
         setLoading(false)
       })

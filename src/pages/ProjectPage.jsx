@@ -2057,6 +2057,17 @@ export default function ProjectPage({
               />
             </div>
           </div>
+          {/* New Recording — always in top-right of header */}
+          <button
+            onClick={() => onStartRecording(project)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all duration-150 cursor-pointer flex-shrink-0"
+            style={{ backgroundColor: '#7133AE' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}
+          >
+            <Mic size={14} strokeWidth={2.5} />
+            New Recording
+          </button>
         </div>
 
         {/* ── Tabs ── */}
@@ -2092,19 +2103,9 @@ export default function ProjectPage({
                 <div>
                   <p className="text-gray-700 font-semibold text-base mb-1">No meetings yet</p>
                   <p className="text-gray-400 text-sm max-w-xs leading-relaxed">
-                    Start a recording to capture your first meeting in this project.
+                    Hit <span className="font-medium text-gray-600">New Recording</span> in the top right to capture your first meeting.
                   </p>
                 </div>
-                <button
-                  onClick={() => onStartRecording(project)}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all duration-150 cursor-pointer"
-                  style={{ backgroundColor: '#7133AE' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}
-                >
-                  <Mic size={15} />
-                  New Recording
-                </button>
               </div>
             ) : (
               <div className="flex flex-col gap-8 w-full">
@@ -2121,8 +2122,8 @@ export default function ProjectPage({
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {/* Summarize Meeting(s) CTA — shown whenever the day has any meetings */}
-                        {dayMeetings.length > 0 && (
+                        {/* Summarize Meetings CTA — only shown when day has 2+ meetings */}
+                        {dayMeetings.length > 1 && (
                           <button
                             onClick={() => { setDaySummaryModal({ dateKey, meetings: dayMeetings }); setStoredSummary(false) }}
                             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors"
@@ -2132,23 +2133,18 @@ export default function ProjectPage({
                             title={hasSummary ? 'View cumulative summary for this day' : 'Summaries still generating…'}
                           >
                             <BookOpen size={12} strokeWidth={2.5} />
-                            {dayMeetings.length === 1 ? 'Summarize Meeting' : 'Summarize Meetings'}
-                          </button>
-                        )}
-                        {dateKey === todayKey && (
-                          <button
-                            onClick={() => onStartRecording(project)}
-                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors"
-                            style={{ color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE08' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE15' }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE08' }}
-                          >
-                            <Mic size={12} strokeWidth={2.5} />
-                            New Recording
+                            Summarize Meetings
                           </button>
                         )}
                       </div>
                     </div>
+
+                    {/* No recordings for today */}
+                    {dateKey === todayKey && dayMeetings.length === 0 && (
+                      <p className="text-sm text-gray-400 py-3 px-1">
+                        No recordings yet today. Start a new recording to capture your meeting.
+                      </p>
+                    )}
 
                     <div className="flex flex-col gap-2">
                       {(grouped[dateKey] || []).map(meeting => (
@@ -2176,10 +2172,7 @@ export default function ProjectPage({
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
                                 Transcript
                               </span>
-                              <span
-                                className="px-2 py-0.5 rounded-full text-xs font-medium"
-                                style={{ backgroundColor: '#7133AE12', color: '#7133AE' }}
-                              >
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
                                 AI Summary
                               </span>
                               <button

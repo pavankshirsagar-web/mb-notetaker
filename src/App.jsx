@@ -116,33 +116,47 @@ async function generateAISummary(lines) {
 
   const transcript = lines.map(l => `${l.speaker}: ${l.text}`).join('\n')
 
-  const prompt = `You are analyzing a meeting transcript and generating a structured meeting summary.
+  const prompt = `You are a professional meeting notes writer. Analyze the transcript below and produce a clean, structured summary.
 
-Important rules:
-- Do NOT copy sentences directly from the transcript.
-- Remove filler speech, repetitions, and conversational phrases.
-- Compress the information into clear insights.
-- Focus on meaning, decisions, and outcomes.
-- Use concise professional language.
+STRICT RULES — follow exactly:
+1. NEVER copy or paraphrase sentences from the transcript. Fully synthesize.
+2. NEVER use first-person ("I", "we", "my"). Always use third-person professional tone.
+3. NEVER include filler words, spoken language patterns, or conversational phrases.
+4. Each bullet point must be ONE crisp sentence — max 20 words — clear and action-oriented.
+5. Topics should be themes/subjects discussed (e.g. "UI redesign scope", "API integration timeline") — not sentences.
+6. Key insights must be conclusions or important takeaways, stated as facts.
+7. Decisions must be concrete outcomes agreed upon, not vague statements.
+8. Action items must have a clear owner and due date.
+9. Write like a senior product manager summarizing for an executive — professional, dense, precise.
 
 Meeting Transcript:
 ---
 ${transcript}
 ---
 
-Return ONLY a valid JSON object with this exact structure (no markdown, no extra text):
+Return ONLY valid JSON, no markdown, no extra text:
 {
-  "objective": "1–2 sentences explaining the purpose of the meeting",
-  "topicsDiscussed": ["2–3 sentence summary of topic 1", "2–3 sentence summary of topic 2"],
-  "keyInsights": ["Most important insight or conclusion 1", "Insight 2"],
-  "decisionsMade": ["Decision 1", "Decision 2"],
+  "objective": "One crisp sentence: what was the purpose and outcome of this meeting",
+  "topicsDiscussed": [
+    "Topic 1 as a concise synthesized point (max 15 words)",
+    "Topic 2 as a concise synthesized point"
+  ],
+  "keyInsights": [
+    "Most important insight or conclusion stated as a fact (max 15 words)",
+    "Second insight"
+  ],
+  "decisionsMade": [
+    "Concrete decision made, stated clearly (max 15 words)"
+  ],
   "actionItems": [
-    { "id": 1, "task": "Task description", "owner": "Speaker name or Team", "due": "Due date or TBD" }
+    { "id": 1, "task": "Specific action in imperative form (max 10 words)", "owner": "Person or team name", "due": "Date or TBD" }
   ]
 }
 
-If no decisions were made, set decisionsMade to ["No final decisions were made."].
-If no action items exist, set actionItems to [].`
+Rules for empty sections:
+- If no clear decisions: decisionsMade: ["No formal decisions were recorded."]
+- If no action items: actionItems: []
+- If objective unclear: objective: "Collaborative session to align on project progress and next steps."`
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -155,7 +169,8 @@ If no action items exist, set actionItems to [].`
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5',
-        max_tokens: 1200,
+        max_tokens: 1024,
+        system: 'You are a professional meeting notes writer. You produce structured, concise, executive-quality meeting summaries. You never copy from transcripts. You synthesize and compress information into clear professional language.',
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -1138,7 +1153,7 @@ export default function App() {
     setMeetings(prev => [meeting, ...prev])
     fsSaveMeeting(currentUser?.uid, meeting)   // persist to Firestore (with _generating flag)
     clearRecording()
-    navToProject(pid)
+    navToMeeting(meeting.id)          // land on this meeting's AI summary + transcript page
     // Generate AI summary in background, then update meeting
     generateAISummary(lines).then(aiSummary => {
       const updated = { ...meeting, summary: aiSummary }
