@@ -330,7 +330,7 @@ export function DailySummaryTab({ projects, meetings, fullPage = false }) {
   const meetingDays = [...new Set(meetings.map(m => m.dateKey))]
   const allDays     = [...new Set([todayKey, ...meetingDays])].sort((a, b) => b.localeCompare(a))
 
-  /* Stale check */
+  /* Stale check — new meetings added since last generation */
   const isStale = (dk) => {
     const stored = summaries[dk]
     if (!stored) return false
@@ -339,49 +339,109 @@ export function DailySummaryTab({ projects, meetings, fullPage = false }) {
     return currentIds.length !== storedIds.length || !currentIds.every(id => storedIds.includes(id))
   }
 
-  /* Generate */
-  const generate = (dk) => {
+  /* ── AI-powered generation ── */
+  const generate = async (dk) => {
     const valid = validMtgs(dk)
     if (!valid.length) return
     setGenerating(dk)
 
-    // Aggregate by project
-    const projMap = {}
+    const apiKey     = import.meta.env.VITE_GROQ_API_KEY
     const projNameMap = Object.fromEntries(projects.map(p => [p.id, p.name]))
 
+    /* Group meetings by project */
+    const projMap = {}
     valid.forEach(m => {
-      const pName = projNameMap[m.projectId] || 'Unknown'
-      if (!projMap[m.projectId]) projMap[m.projectId] = { name: pName, count: 0, topics: [], decisions: [] }
-      const clean = (t) => t.includes(' – ') ? t.split(' – ').slice(1).join(' – ') : t
-      projMap[m.projectId].count++
-      projMap[m.projectId].topics.push(...(m.summary.topicsDiscussed || []))
-      projMap[m.projectId].decisions.push(...(m.summary.decisionsMade || []).filter(d => d !== 'No final decisions were made.'))
+      const pName = projNameMap[m.projectId] || 'Unknown Project'
+      if (!projMap[m.projectId]) projMap[m.projectId] = { name: pName, meetings: [] }
+      projMap[m.projectId].meetings.push(m)
     })
 
-    // Today's tasks across all projects
-    const allTodayTasks = []
+    /* Todos per project for this day */
+    const projTodos = {}
     projects.forEach(proj => {
       try {
         const stored = JSON.parse(localStorage.getItem(`todos_${proj.id}`) || '{}')
-        ;(stored[dk] || []).forEach(t => allTodayTasks.push({ ...t, projectName: proj.name }))
-      } catch {}
+        projTodos[proj.id] = stored[dk] || []
+      } catch { projTodos[proj.id] = [] }
     })
-    try {
-      const personal = JSON.parse(localStorage.getItem('todos_personal') || '{}')
-      ;(personal[dk] || []).forEach(t => allTodayTasks.push({ ...t, projectName: '' }))
-    } catch {}
+
+    /* Generate bullet-point summary per project */
+    const projectSummaries = []
+
+    for (const [projId, projData] of Object.entries(projMap)) {
+      const todos    = projTodos[projId] || []
+      const doneTasks   = todos.filter(t => t.done)
+      const pendingTasks = todos.filter(t => !t.done)
+
+      /* Build context string */
+      let context = `Project: ${projData.name}\n`
+      projData.meetings.forEach(m => {
+        context += `\nMeeting: "${m.title}"\n`
+        if (m.summary.objective)               context += `Objective: ${m.summary.objective}\n`
+        if (m.summary.topicsDiscussed?.length)  context += `Topics discussed: ${m.summary.topicsDiscussed.join(', ')}\n`
+        if (m.summary.keyInsights?.length)      context += `Key insights: ${m.summary.keyInsights.join('; ')}\n`
+        if (m.summary.decisionsMade?.length)    context += `Decisions made: ${m.summary.decisionsMade.filter(d => d !== 'No final decisions were made.').join('; ')}\n`
+        if (m.summary.actionItems?.length)      context += `Action items: ${m.summary.actionItems.map(a => a.task).join(', ')}\n`
+      })
+      if (doneTasks.length)   context += `\nCompleted tasks: ${doneTasks.map(t => t.text).join(', ')}\n`
+      if (pendingTasks.length) context += `Pending tasks: ${pendingTasks.map(t => t.text).join(', ')}\n`
+
+      let bullets = []
+
+      if (apiKey && apiKey !== 'your_groq_api_key_here') {
+        try {
+          const prompt = `You are a professional work-log writer. Based on the project context below, write 3–5 concise bullet points summarizing what was accomplished, discussed, and decided today. Focus on outcomes and progress. Each bullet max 18 words. Professional third-person tone. No fluff.
+
+${context}
+
+Return ONLY a valid JSON array of strings. Example: ["Finalized API integration approach for v2 release.", "Decided to prioritize mobile UI before backend refactor."]`
+
+          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model:       'llama-3.3-70b-versatile',
+              messages:    [{ role: 'user', content: prompt }],
+              temperature: 0.3,
+              max_tokens:  512,
+            }),
+          })
+
+          if (res.ok) {
+            const data = await res.json()
+            const text = data.choices?.[0]?.message?.content?.trim() ?? ''
+            const match = text.match(/\[[\s\S]*\]/)
+            if (match) bullets = JSON.parse(match[0])
+          }
+        } catch (e) {
+          console.error('[DailySummary] Groq error:', e)
+        }
+      }
+
+      /* Fallback bullets if API unavailable */
+      if (!bullets.length) {
+        const allTopics    = projData.meetings.flatMap(m => m.summary.topicsDiscussed || [])
+        const allDecisions = projData.meetings.flatMap(m => (m.summary.decisionsMade || []).filter(d => d !== 'No final decisions were made.'))
+        if (projData.meetings[0]?.summary.objective) bullets.push(projData.meetings[0].summary.objective)
+        allTopics.slice(0, 2).forEach(t => bullets.push(t))
+        allDecisions.slice(0, 1).forEach(d => bullets.push(d))
+        if (doneTasks.length) bullets.push(`Completed ${doneTasks.length} task${doneTasks.length !== 1 ? 's' : ''}: ${doneTasks.slice(0, 2).map(t => t.text).join(', ')}`)
+      }
+
+      projectSummaries.push({
+        projectId:    projId,
+        name:         projData.name,
+        meetingCount: projData.meetings.length,
+        bullets,
+        todosDone:    doneTasks.length,
+        todosTotal:   todos.length,
+      })
+    }
 
     saveSummary(dk, {
       generatedAt: new Date().toISOString(),
       meetingIds:  valid.map(m => m.id),
-      content: {
-        totalMeetings:    valid.length,
-        totalProjects:    Object.keys(projMap).length,
-        projects:         Object.values(projMap),
-        tasksTotal:       allTodayTasks.length,
-        tasksDone:        allTodayTasks.filter(t => t.done).length,
-        tasks:            allTodayTasks,
-      },
+      projects:    projectSummaries,
     })
     setGenerating(null)
   }
@@ -399,115 +459,102 @@ export function DailySummaryTab({ projects, meetings, fullPage = false }) {
           </div>
         </div>
       )}
-    <div className="flex flex-col flex-1 overflow-y-auto py-3 px-3 gap-6">
-      {allDays.map(dk => {
-        const dayMeetings = meetingsForDay(dk)
-        if (dk !== todayKey && !dayMeetings.length) return null
 
-        const summary     = summaries[dk]
-        const stale       = isStale(dk)
-        const isGenerating = generating === dk
-        const hasValid    = validMtgs(dk).length > 0
+      <div className="flex flex-col flex-1 overflow-y-auto py-5 px-6 gap-8">
+        {allDays.map(dk => {
+          const dayMeetings  = meetingsForDay(dk)
+          if (dk !== todayKey && !dayMeetings.length) return null
 
-        return (
-          <section key={dk}>
-            {/* Day header */}
-            <div className="flex items-center gap-1.5 mb-2">
-              <CalendarDays size={11} className="text-gray-400 flex-shrink-0" />
-              <span className="text-[10px] font-semibold text-gray-400 tracking-wider">{fmtKey(dk)}</span>
-            </div>
+          const summary      = summaries[dk]
+          const stale        = isStale(dk)
+          const isGenerating = generating === dk
+          const hasValid     = validMtgs(dk).length > 0
 
-            {/* No meetings */}
-            {!dayMeetings.length && (
-              <p className="text-xs text-gray-300 px-1">No meetings today.</p>
-            )}
-
-            {/* Has meetings — no summary yet */}
-            {dayMeetings.length > 0 && !summary && (
-              <button onClick={() => generate(dk)} disabled={!hasValid || isGenerating}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer border"
-                style={{ color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE06',
-                         opacity: (!hasValid && !isGenerating) ? 0.5 : 1 }}
-                title={!hasValid ? 'Waiting for AI summaries to generate…' : undefined}>
-                {isGenerating
-                  ? <><div className="w-3 h-3 rounded-full border-2 border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
-                  : <><Sparkles size={13} strokeWidth={2} />Summarize My Day</>
-                }
-              </button>
-            )}
-
-            {/* Summary card */}
-            {summary && (
-              <div className="rounded-xl border bg-gray-50 p-3 space-y-2.5" style={{ borderColor: '#e5e7eb' }}>
-
-                {/* Stat row */}
-                <div className="flex items-center gap-2">
-                  <Sparkles size={11} style={{ color: '#7133AE' }} />
-                  <span className="text-xs font-semibold text-gray-700">
-                    {summary.content.totalMeetings} meeting{summary.content.totalMeetings !== 1 ? 's' : ''} · {summary.content.totalProjects} project{summary.content.totalProjects !== 1 ? 's' : ''}
-                  </span>
-                </div>
-
-                {/* Per-project */}
-                {summary.content.projects.map((proj, i) => (
-                  <div key={i}>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <div className="w-1 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#7133AE' }} />
-                      <span className="text-[11px] font-semibold text-gray-700">{proj.name}</span>
-                      <span className="text-[10px] text-gray-400">{proj.count} mtg</span>
-                    </div>
-                    {proj.topics.slice(0, 2).map((t, j) => (
-                      <p key={j} className="text-[11px] text-gray-500 pl-2.5 leading-snug">• {t}</p>
-                    ))}
-                    {proj.topics.length > 2 && (
-                      <p className="text-[10px] text-gray-400 pl-2.5">+{proj.topics.length - 2} more</p>
-                    )}
-                  </div>
-                ))}
-
-                {/* Tasks */}
-                {summary.content.tasksTotal > 0 && (
-                  <div className="border-t pt-2" style={{ borderColor: '#e5e7eb' }}>
-                    <p className="text-[11px] font-semibold text-gray-500 mb-1">
-                      Tasks · {summary.content.tasksDone}/{summary.content.tasksTotal} done
-                    </p>
-                    {summary.content.tasks.slice(0, 3).map((t, i) => (
-                      <div key={i} className="flex items-center gap-1.5 mb-0.5">
-                        {t.done
-                          ? <SquareCheck size={10} style={{ color: '#7133AE' }} className="flex-shrink-0" />
-                          : <Square size={10} className="text-gray-300 flex-shrink-0" />
-                        }
-                        <span className="text-[11px] text-gray-500 truncate"
-                          style={{ textDecoration: t.done ? 'line-through' : 'none' }}>
-                          {t.text}
-                        </span>
-                      </div>
-                    ))}
-                    {summary.content.tasks.length > 3 && (
-                      <p className="text-[10px] text-gray-400 pl-3.5">+{summary.content.tasks.length - 3} more</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Footer: stale warning + update btn */}
-                {stale ? (
-                  <button onClick={() => generate(dk)}
-                    className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors"
-                    style={{ color: '#7133AE', backgroundColor: '#7133AE0A' }}>
-                    <RefreshCw size={11} strokeWidth={2.5} />
-                    Update Summary
-                  </button>
-                ) : (
-                  <p className="text-[10px] text-gray-400">
-                    Updated {new Date(summary.generatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                  </p>
-                )}
+          return (
+            <section key={dk}>
+              {/* Day header */}
+              <div className="flex items-center gap-2 mb-3">
+                <CalendarDays size={12} className="text-gray-400 flex-shrink-0" />
+                <span className="text-[11px] font-bold text-gray-400 tracking-widest uppercase">{fmtKey(dk)}</span>
               </div>
-            )}
-          </section>
-        )
-      })}
-    </div>
+
+              {/* No meetings */}
+              {!dayMeetings.length && (
+                <p className="text-sm text-gray-300 px-1">No meetings recorded for this day.</p>
+              )}
+
+              {/* Has meetings — not yet summarised */}
+              {dayMeetings.length > 0 && !summary && (
+                <button
+                  onClick={() => generate(dk)}
+                  disabled={!hasValid || isGenerating}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-colors cursor-pointer border"
+                  style={{
+                    color: '#7133AE', borderColor: '#7133AE30', backgroundColor: '#7133AE06',
+                    opacity: (!hasValid && !isGenerating) ? 0.5 : 1,
+                  }}
+                  title={!hasValid ? 'Generate AI meeting summaries first, then come back.' : undefined}
+                >
+                  {isGenerating
+                    ? <><div className="w-3.5 h-3.5 rounded-full border-2 border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
+                    : <><Sparkles size={14} strokeWidth={2} />Summarize My Day</>
+                  }
+                </button>
+              )}
+
+              {/* Summary card */}
+              {summary && (
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+
+                  {/* Per-project sections */}
+                  {(summary.projects || []).map((proj, pi) => (
+                    <div key={proj.projectId ?? pi} className={`px-5 py-4 ${pi > 0 ? 'border-t border-gray-100' : ''}`}>
+
+                      {/* Project heading */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: '#7133AE' }} />
+                        <span className="text-sm font-semibold text-gray-800 flex-1">{proj.name}</span>
+                        {pi === 0 && (
+                          <button
+                            onClick={() => generate(dk)}
+                            disabled={isGenerating}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer flex-shrink-0"
+                            style={{ borderColor: '#7133AE40', color: '#7133AE', backgroundColor: 'transparent' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE0A' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                          >
+                            {isGenerating
+                              ? <><div className="w-2.5 h-2.5 rounded-full border border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
+                              : <><RefreshCw size={11} strokeWidth={2.5} />Re-summarize Day</>
+                            }
+                          </button>
+                        )}
+                      </div>
+
+                      {/* AI bullet points */}
+                      <ul className="flex flex-col gap-2">
+                        {(proj.bullets || []).map((b, bi) => (
+                          <li key={bi} className="flex items-start gap-2.5">
+                            <span className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0 bg-gray-300" />
+                            <span className="text-sm text-gray-600 leading-relaxed">{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+
+                  {/* Footer */}
+                  <div className="px-5 py-2.5 border-t border-gray-100 bg-gray-50">
+                    <p className="text-xs text-gray-400">
+                      Updated {new Date(summary.generatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </section>
+          )
+        })}
+      </div>
     </div>
   )
 }
