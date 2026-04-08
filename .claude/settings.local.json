@@ -76,7 +76,8 @@
       "Bash(node -e \"const pkg = require\\(''C:/Users/pavan.kshirsagar/Desktop/AI Notetaker/node_modules/lucide-react/package.json''\\); console.log\\(pkg.version\\)\")",
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker && npm run lint 2>&1\")",
       "Bash(grep -n \"EMPTY_SUMMARY\\\\|generateAISummary\\\\|objectiveEditor\\\\|SummarySection\" ./src/App.jsx ./src/pages/*.jsx)",
-      "Bash(powershell -Command \"\\(Get-Content src/App.jsx\\) -replace ''\\\\s*onNavigateToTodos=\\\\{navToTodos\\\\}'', '''' | Set-Content src/App.jsx\")"
+      "Bash(powershell -Command \"\\(Get-Content src/App.jsx\\) -replace ''\\\\s*onNavigateToTodos=\\\\{navToTodos\\\\}'', '''' | Set-Content src/App.jsx\")",
+      "Bash(dir \"C:\\\\Users\\\\pavan.kshirsagar\\\\Desktop\\\\AI Notetaker\\\\src\\\\pages\" /b)"
     ]
   }
 }
