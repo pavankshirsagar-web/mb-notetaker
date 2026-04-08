@@ -53,19 +53,22 @@ function ReadOnlyBullet({ text }) {
 /* ─────────────────────────────────────────────
    SUMMARY SECTION WRAPPER
 ───────────────────────────────────────────── */
-function SummarySection({ title, icon, children }) {
+function SummarySection({ title, icon, headerRight, children }) {
   return (
     <div className="mb-7">
       {/* Section header */}
-      <div className="flex items-center gap-2 mb-2.5">
-        {icon && (
-          <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
-            {icon}
-          </div>
-        )}
-        <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
-          {title}
-        </span>
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          {icon && (
+            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
+              {icon}
+            </div>
+          )}
+          <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+            {title}
+          </span>
+        </div>
+        {headerRight && <div className="flex-shrink-0">{headerRight}</div>}
       </div>
       {/* Items */}
       <div className="flex flex-col">{children}</div>
@@ -616,7 +619,25 @@ export default function MeetingDetail({
 
                   {/* 5. Action Items */}
                   <SummarySection title="Action Items"
-                    icon={<ListChecks size={11} className="text-gray-400" />}>
+                    icon={<ListChecks size={11} className="text-gray-400" />}
+                    headerRight={(summary.actionItems || []).length > 0 && (
+                      <button
+                        onClick={handleAddToTodos}
+                        disabled={checkedCount === 0 && !todosSaved}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all"
+                        style={{
+                          borderColor:     todosSaved ? '#16a34a' : checkedCount > 0 ? '#7133AE' : '#e5e7eb',
+                          color:           todosSaved ? '#16a34a' : checkedCount > 0 ? '#7133AE' : '#d1d5db',
+                          backgroundColor: todosSaved ? '#f0fdf4'  : checkedCount > 0 ? '#7133AE0A' : 'transparent',
+                          cursor:          checkedCount === 0 && !todosSaved ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {todosSaved
+                          ? <><Check size={11} strokeWidth={2.5} /> Saved to To-Do list</>
+                          : <><SquareCheck size={11} strokeWidth={2.5} /> Add to To-Do list</>
+                        }
+                      </button>
+                    )}>
 
                     {(summary.actionItems || []).length === 0 ? (
                       <p className="text-xs text-gray-300 py-1">No action items recorded.</p>
@@ -630,34 +651,6 @@ export default function MeetingDetail({
                             onToggleMine={(mine) => toggleMineAction(i, mine)}
                           />
                         ))}
-                      </div>
-                    )}
-
-                    {/* Add to To-Do List CTA */}
-                    {(summary.actionItems || []).length > 0 && (
-                      <div className="flex items-center gap-3 mt-3">
-                        <button
-                          onClick={handleAddToTodos}
-                          disabled={checkedCount === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer"
-                          style={{
-                            borderColor:      checkedCount > 0 ? '#7133AE' : '#e5e7eb',
-                            color:            checkedCount > 0 ? '#7133AE' : '#d1d5db',
-                            backgroundColor:  checkedCount > 0 ? '#7133AE0A' : 'transparent',
-                            cursor:           checkedCount === 0 ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          <SquareCheck size={12} strokeWidth={2.5} />
-                          {checkedCount > 0
-                            ? `Add ${checkedCount} item${checkedCount > 1 ? 's' : ''} to To-Do list`
-                            : 'Select items to add'}
-                        </button>
-                        {todosSaved && (
-                          <span className="flex items-center gap-1 text-xs text-green-600">
-                            <Check size={11} strokeWidth={2.5} />
-                            Saved to To-Do
-                          </span>
-                        )}
                       </div>
                     )}
                   </SummarySection>
