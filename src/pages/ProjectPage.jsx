@@ -1868,20 +1868,20 @@ function TodoTab({ meetings, projectId }) {
 
                   {/* Edit + Delete — only for today's tasks */}
                   {isToday && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
+                  <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
                     <button
                       onClick={() => startEdit(task)}
                       className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                       title="Edit task"
                     >
-                      <Pencil size={12} className="text-gray-400" />
+                      <Pencil size={12} className="text-gray-400 hover:text-gray-600 transition-colors" />
                     </button>
                     <button
                       onClick={() => deleteTask(dk, task.id)}
-                      className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                      className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                       title="Delete task"
                     >
-                      <Trash2 size={12} className="text-gray-300 hover:text-red-500 transition-colors" />
+                      <Trash2 size={12} className="text-gray-400 hover:text-gray-600 transition-colors" />
                     </button>
                   </div>
                   )}
