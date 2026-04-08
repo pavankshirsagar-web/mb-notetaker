@@ -507,6 +507,11 @@ Return ONLY a valid JSON array of strings. Example: ["Finalized API integration 
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
                   {/* Per-project sections */}
+                  {(summary.projects || []).length === 0 && (
+                    <div className="px-5 py-4">
+                      <p className="text-sm text-gray-300 italic">No summary content — click Re-summarize Day.</p>
+                    </div>
+                  )}
                   {(summary.projects || []).map((proj, pi) => (
                     <div key={proj.projectId ?? pi} className={`px-5 py-4 ${pi > 0 ? 'border-t border-gray-100' : ''}`}>
 
@@ -514,40 +519,43 @@ Return ONLY a valid JSON array of strings. Example: ["Finalized API integration 
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-1 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: '#7133AE' }} />
                         <span className="text-sm font-semibold text-gray-800 flex-1">{proj.name}</span>
-                        {pi === 0 && (
-                          <button
-                            onClick={() => generate(dk)}
-                            disabled={isGenerating}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer flex-shrink-0"
-                            style={{ borderColor: '#7133AE40', color: '#7133AE', backgroundColor: 'transparent' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE0A' }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                          >
-                            {isGenerating
-                              ? <><div className="w-2.5 h-2.5 rounded-full border border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
-                              : <><RefreshCw size={11} strokeWidth={2.5} />Re-summarize Day</>
-                            }
-                          </button>
-                        )}
                       </div>
 
                       {/* AI bullet points */}
-                      <ul className="flex flex-col gap-2">
-                        {(proj.bullets || []).map((b, bi) => (
-                          <li key={bi} className="flex items-start gap-2.5">
-                            <span className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0 bg-gray-300" />
-                            <span className="text-sm text-gray-600 leading-relaxed">{b}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      {(proj.bullets || []).length === 0
+                        ? <p className="text-sm text-gray-300 italic">No summary content — click Re-summarize Day.</p>
+                        : (
+                          <ul className="flex flex-col gap-2">
+                            {(proj.bullets || []).map((b, bi) => (
+                              <li key={bi} className="flex items-start gap-2.5">
+                                <span className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0 bg-gray-300" />
+                                <span className="text-sm text-gray-600 leading-relaxed">{b}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )
+                      }
                     </div>
                   ))}
 
-                  {/* Footer */}
-                  <div className="px-5 py-2.5 border-t border-gray-100 bg-gray-50">
+                  {/* Footer — always shows Re-summarize Day */}
+                  <div className="px-5 py-2.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
                     <p className="text-xs text-gray-400">
                       Updated {new Date(summary.generatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                     </p>
+                    <button
+                      onClick={() => generate(dk)}
+                      disabled={isGenerating}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer flex-shrink-0"
+                      style={{ borderColor: '#7133AE40', color: '#7133AE', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE0A' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                    >
+                      {isGenerating
+                        ? <><div className="w-2.5 h-2.5 rounded-full border border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
+                        : <><RefreshCw size={11} strokeWidth={2.5} />Re-summarize Day</>
+                      }
+                    </button>
                   </div>
                 </div>
               )}
