@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Folder, Clock, Globe, Download,
   Pencil, Check, Plus, Trash2, ChevronRight, Users, X, Copy, CheckCheck,
+  Target, Hash, Lightbulb, CheckCircle2, ListChecks, Calendar,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 
@@ -33,29 +34,26 @@ function ObjectiveEditor({ value, onSave }) {
 
   const save = () => { setEditing(false); if (val.trim() !== value) onSave(val.trim()) }
 
-  if (editing) {
-    return (
-      <textarea
-        autoFocus
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() } }}
-        rows={2}
-        className="w-full text-sm text-gray-700 leading-relaxed border-b border-purple-300 outline-none bg-transparent resize-none pb-0.5"
-      />
-    )
-  }
-
   return (
-    <button
-      onClick={() => setEditing(true)}
-      className="w-full text-left cursor-text group"
-    >
-      <p className={['text-sm leading-relaxed', value ? 'text-gray-700 hover:text-gray-900' : 'text-gray-300 italic'].join(' ')}>
-        {value || 'Click to add meeting objective…'}
-      </p>
-    </button>
+    <div className="rounded-xl border px-4 py-3.5 transition-all cursor-text"
+      style={{ borderColor: editing ? '#d1d5db' : '#f3f4f6', backgroundColor: '#fafafa' }}
+      onClick={() => !editing && setEditing(true)}>
+      {editing ? (
+        <textarea
+          autoFocus
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() } }}
+          rows={2}
+          className="w-full text-sm text-gray-700 leading-relaxed outline-none bg-transparent resize-none"
+        />
+      ) : (
+        value
+          ? <p className="text-sm leading-relaxed text-gray-700">{value}</p>
+          : <p className="text-sm text-gray-300 italic">No objective recorded.</p>
+      )}
+    </div>
   )
 }
 
@@ -66,19 +64,14 @@ function EditableBullet({ text, onChange, onDelete }) {
   const [editing, setEditing] = useState(false)
   const [val,     setVal]     = useState(text)
 
-  const save = () => {
-    setEditing(false)
-    onChange(val.trim() || text)
-  }
+  const save = () => { setEditing(false); onChange(val.trim() || text) }
 
   return (
-    <div className="group flex items-start gap-2.5 py-1.5">
-      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-2 flex-shrink-0" />
+    <div className="group flex items-start gap-2.5 py-1.5 px-1">
+      <span className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0 bg-gray-300" />
       {editing ? (
         <div className="flex-1 flex items-center gap-2">
-          <input
-            autoFocus
-            value={val}
+          <input autoFocus value={val}
             onChange={(e) => setVal(e.target.value)}
             onBlur={save}
             onKeyDown={(e) => { if (e.key === 'Enter') save() }}
@@ -91,11 +84,11 @@ function EditableBullet({ text, onChange, onDelete }) {
       ) : (
         <div className="flex-1 flex items-start justify-between gap-2">
           <p className="text-sm text-gray-700 leading-relaxed flex-1">{text}</p>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
-            <button onClick={() => setEditing(true)} className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600 cursor-pointer transition-colors">
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
+            <button onClick={() => setEditing(true)} className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500 cursor-pointer transition-colors">
               <Pencil size={11} />
             </button>
-            <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 cursor-pointer transition-colors">
+            <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 cursor-pointer transition-colors">
               <Trash2 size={11} />
             </button>
           </div>
@@ -108,22 +101,31 @@ function EditableBullet({ text, onChange, onDelete }) {
 /* ─────────────────────────────────────────────
    SUMMARY SECTION WRAPPER
 ───────────────────────────────────────────── */
-function SummarySection({ title, children, onAddItem }) {
+function SummarySection({ title, icon, children, onAddItem }) {
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
-          {title}
-        </span>
-        <button
-          onClick={onAddItem}
-          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer px-1.5 py-0.5 rounded hover:bg-gray-100"
-        >
-          <Plus size={11} />
-          Add
-        </button>
+    <div className="mb-7">
+      {/* Section header */}
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          {icon && (
+            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
+              {icon}
+            </div>
+          )}
+          <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+            {title}
+          </span>
+        </div>
+        {onAddItem && (
+          <button onClick={onAddItem}
+            className="flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-purple-600 transition-colors cursor-pointer px-2 py-0.5 rounded-lg hover:bg-purple-50 border border-transparent hover:border-purple-100">
+            <Plus size={10} strokeWidth={2.5} />
+            Add
+          </button>
+        )}
       </div>
-      <div className="pl-1">{children}</div>
+      {/* Items */}
+      <div className="flex flex-col">{children}</div>
     </div>
   )
 }
@@ -131,66 +133,34 @@ function SummarySection({ title, children, onAddItem }) {
 /* ─────────────────────────────────────────────
    ACTION ITEM ROW
 ───────────────────────────────────────────── */
-function ActionItemRow({ item, onChange, onDelete }) {
+function ActionItemRow({ item, onChange, onDelete, readOnly = false }) {
   const [editing, setEditing] = useState(false)
   const [vals,    setVals]    = useState({ task: item.task, owner: item.owner, due: item.due })
 
-  const save = () => { setEditing(false); onChange({ ...item, ...vals }) }
+  const save = () => { setEditing(false); onChange?.({ ...item, ...vals }) }
 
   return (
-    <div className="group flex items-start gap-2.5 py-2 border-b border-gray-50 last:border-0">
-      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-2 flex-shrink-0" />
-      {editing ? (
-        <div className="flex-1 flex flex-col gap-1.5">
-          <input
-            autoFocus
-            value={vals.task}
-            onChange={(e) => setVals(v => ({ ...v, task: e.target.value }))}
-            placeholder="Task description"
-            className="text-sm text-gray-700 border-b border-purple-200 outline-none bg-transparent pb-0.5 w-full"
-          />
-          <div className="flex gap-3">
-            <input
-              value={vals.owner}
-              onChange={(e) => setVals(v => ({ ...v, owner: e.target.value }))}
-              placeholder="Owner"
-              className="text-xs text-gray-500 border-b border-gray-200 outline-none bg-transparent pb-0.5 flex-1"
-            />
-            <input
-              value={vals.due}
-              onChange={(e) => setVals(v => ({ ...v, due: e.target.value }))}
-              placeholder="Due date"
-              className="text-xs text-gray-500 border-b border-gray-200 outline-none bg-transparent pb-0.5 flex-1"
-            />
-          </div>
-          <button onClick={save} className="self-start flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 cursor-pointer mt-0.5">
-            <Check size={11} /> Save
-          </button>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <p className="text-sm text-gray-700 leading-snug">{item.task}</p>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-xs text-gray-400">
-                <span className="font-medium text-gray-500">Owner:</span> {item.owner}
+    <div className="flex items-start gap-2.5 py-1.5 px-1">
+      <span className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0 bg-gray-300" />
+      <div className="flex-1">
+        <p className="text-sm text-gray-700 leading-relaxed">{item.task}</p>
+        {((item.owner && item.owner !== 'Unassigned') || (item.due && item.due !== 'TBD')) && (
+          <div className="flex items-center gap-2 flex-wrap mt-1">
+            {item.owner && item.owner !== 'Unassigned' && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+                <Users size={9} strokeWidth={2} />
+                {item.owner}
               </span>
-              <ChevronRight size={10} className="text-gray-300" />
-              <span className="text-xs text-gray-400">
-                <span className="font-medium text-gray-500">Due:</span> {item.due}
+            )}
+            {item.due && item.due !== 'TBD' && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+                <Calendar size={9} strokeWidth={2} />
+                {item.due}
               </span>
-            </div>
+            )}
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
-            <button onClick={() => setEditing(true)} className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600 cursor-pointer transition-colors">
-              <Pencil size={11} />
-            </button>
-            <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 cursor-pointer transition-colors">
-              <Trash2 size={11} />
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -601,15 +571,22 @@ export default function MeetingDetail({
               {!summary._generating && (
                 <>
                   {/* 1. Objective */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Objective</span>
+                  <div className="mb-7">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
+                        <Target size={11} className="text-gray-400" />
+                      </div>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                        Objective
+                      </span>
                     </div>
                     <ObjectiveEditor value={summary.objective} onSave={updateObjective} />
                   </div>
 
                   {/* 2. Topics Discussed */}
-                  <SummarySection title="Topics Discussed" onAddItem={() => addBullet('topicsDiscussed')}>
+                  <SummarySection title="Topics Discussed"
+                    icon={<Hash size={11} className="text-gray-400" />}
+                    onAddItem={() => addBullet('topicsDiscussed')}>
                     {(summary.topicsDiscussed || []).map((t, i) => (
                       <EditableBullet key={i} text={t}
                         onChange={(v) => updateBullet('topicsDiscussed', i, v)}
@@ -618,7 +595,9 @@ export default function MeetingDetail({
                   </SummarySection>
 
                   {/* 3. Key Insights */}
-                  <SummarySection title="Key Insights" onAddItem={() => addBullet('keyInsights')}>
+                  <SummarySection title="Key Insights"
+                    icon={<Lightbulb size={11} className="text-gray-400" />}
+                    onAddItem={() => addBullet('keyInsights')}>
                     {(summary.keyInsights || []).map((h, i) => (
                       <EditableBullet key={i} text={h}
                         onChange={(v) => updateBullet('keyInsights', i, v)}
@@ -627,7 +606,9 @@ export default function MeetingDetail({
                   </SummarySection>
 
                   {/* 4. Decisions Made */}
-                  <SummarySection title="Decisions Made" onAddItem={() => addBullet('decisionsMade')}>
+                  <SummarySection title="Decisions Made"
+                    icon={<CheckCircle2 size={11} className="text-gray-400" />}
+                    onAddItem={() => addBullet('decisionsMade')}>
                     {(summary.decisionsMade || []).map((d, i) => (
                       <EditableBullet key={i} text={d}
                         onChange={(v) => updateBullet('decisionsMade', i, v)}
@@ -635,12 +616,11 @@ export default function MeetingDetail({
                     ))}
                   </SummarySection>
 
-                  {/* 5. Action Items */}
-                  <SummarySection title="Action Items" onAddItem={addAction}>
+                  {/* 5. Action Items — read only */}
+                  <SummarySection title="Action Items"
+                    icon={<ListChecks size={11} className="text-gray-400" />}>
                     {(summary.actionItems || []).map((item, i) => (
-                      <ActionItemRow key={item.id ?? i} item={item}
-                        onChange={(v) => updateAction(i, v)}
-                        onDelete={() => deleteAction(i)} />
+                      <ActionItemRow key={item.id ?? i} item={item} readOnly />
                     ))}
                   </SummarySection>
                 </>
