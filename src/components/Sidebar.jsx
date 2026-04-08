@@ -476,6 +476,27 @@ Return ONLY a valid JSON array of strings. Example: ["Finalized API integration 
               <div className="flex items-center gap-2 mb-3">
                 <CalendarDays size={12} className="text-gray-400 flex-shrink-0" />
                 <span className="text-[11px] font-bold text-gray-400 tracking-widest uppercase">{fmtKey(dk)}</span>
+                {summary && (
+                  <>
+                    <span className="flex-1" />
+                    <span className="text-[11px] text-gray-400">
+                      Updated {new Date(summary.generatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                    <button
+                      onClick={() => generate(dk)}
+                      disabled={isGenerating}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer flex-shrink-0"
+                      style={{ borderColor: '#7133AE40', color: '#7133AE', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE0A' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                    >
+                      {isGenerating
+                        ? <><div className="w-2.5 h-2.5 rounded-full border border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
+                        : <><RefreshCw size={11} strokeWidth={2.5} />Re-summarize Day</>
+                      }
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* No meetings */}
@@ -504,7 +525,7 @@ Return ONLY a valid JSON array of strings. Example: ["Finalized API integration 
 
               {/* Summary card */}
               {summary && (
-                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
 
                   {/* Per-project sections */}
                   {(summary.projects || []).length === 0 && (
@@ -538,25 +559,6 @@ Return ONLY a valid JSON array of strings. Example: ["Finalized API integration 
                     </div>
                   ))}
 
-                  {/* Footer — always shows Re-summarize Day */}
-                  <div className="px-5 py-2.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-                    <p className="text-xs text-gray-400">
-                      Updated {new Date(summary.generatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                    </p>
-                    <button
-                      onClick={() => generate(dk)}
-                      disabled={isGenerating}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer flex-shrink-0"
-                      style={{ borderColor: '#7133AE40', color: '#7133AE', backgroundColor: 'transparent' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE0A' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                    >
-                      {isGenerating
-                        ? <><div className="w-2.5 h-2.5 rounded-full border border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
-                        : <><RefreshCw size={11} strokeWidth={2.5} />Re-summarize Day</>
-                      }
-                    </button>
-                  </div>
                 </div>
               )}
             </section>
