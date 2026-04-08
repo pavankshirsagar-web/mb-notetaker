@@ -482,19 +482,21 @@ Return ONLY a valid JSON array of strings. Example: ["Finalized API integration 
                     <span className="text-[11px] text-gray-400">
                       Updated {new Date(summary.generatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                     </span>
-                    <button
-                      onClick={() => generate(dk)}
-                      disabled={isGenerating}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer flex-shrink-0"
-                      style={{ borderColor: '#7133AE40', color: '#7133AE', backgroundColor: 'transparent' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE0A' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                    >
-                      {isGenerating
-                        ? <><div className="w-2.5 h-2.5 rounded-full border border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
-                        : <><RefreshCw size={11} strokeWidth={2.5} />Re-summarize Day</>
-                      }
-                    </button>
+                    {dk === todayKey && (
+                      <button
+                        onClick={() => generate(dk)}
+                        disabled={isGenerating}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-colors cursor-pointer flex-shrink-0"
+                        style={{ borderColor: '#7133AE40', color: '#7133AE', backgroundColor: 'transparent' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7133AE0A' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                      >
+                        {isGenerating
+                          ? <><div className="w-2.5 h-2.5 rounded-full border border-purple-300 border-t-purple-600 animate-spin" />Generating…</>
+                          : <><RefreshCw size={11} strokeWidth={2.5} />Re-summarize Day</>
+                        }
+                      </button>
+                    )}
                   </>
                 )}
               </div>
