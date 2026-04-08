@@ -2075,6 +2075,7 @@ export default function ProjectPage({
           {[
             { key: 'recordings', label: 'Recordings', icon: <Mic      size={13} strokeWidth={2.5} /> },
             { key: 'workspace',  label: 'Workspace',  icon: <FileText size={13} strokeWidth={2.5} /> },
+            { key: 'todos',      label: 'To-Do',      icon: <ListTodo size={13} strokeWidth={2.5} /> },
           ].map(tab => (
             <button
               key={tab.key}
@@ -2092,8 +2093,7 @@ export default function ProjectPage({
         </div>
 
         {/* ── Body ── */}
-        <div className={activeTab === 'workspace' ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto px-4 pt-4 pb-6'}
-        >
+        <div className={activeTab === 'workspace' ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto px-4 pt-4 pb-6'}>
 
           {/* ── Recordings Tab ── */}
           {activeTab === 'recordings' && (
@@ -2196,6 +2196,11 @@ export default function ProjectPage({
                 })}
               </div>
             )
+          )}
+
+          {/* ── To-Do Tab ── */}
+          {activeTab === 'todos' && (
+            <TodoTab meetings={meetings} projectId={project.id} />
           )}
 
           {/* ── Workspace Tab ── */}

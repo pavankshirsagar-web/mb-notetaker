@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Plus, Folder, MoreHorizontal, Pencil, Trash2, X, Search,
-  ListTodo, BookOpen,
+  BookOpen,
   Square, SquareCheck, CalendarDays, Sparkles,
   RefreshCw,
 } from 'lucide-react'
@@ -48,10 +48,8 @@ export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = 
   const todayKey = new Date().toISOString().split('T')[0]
 
   /* ── read/write helpers ─────────────────────────────────────────────── */
-  const readProj  = (pid) => { try { return JSON.parse(localStorage.getItem(`todos_${pid}`)        || '{}') } catch { return {} } }
-  const readMerge = (pid) => { try { return JSON.parse(localStorage.getItem(`todos_merged_${pid}`) || '[]') } catch { return [] } }
-  const saveProj  = (pid, data) => localStorage.setItem(`todos_${pid}`,        JSON.stringify(data))
-  const saveMerge = (pid, data) => localStorage.setItem(`todos_merged_${pid}`, JSON.stringify(data))
+  const readProj = (pid) => { try { return JSON.parse(localStorage.getItem(`todos_${pid}`) || '{}') } catch { return {} } }
+  const saveProj = (pid, data) => localStorage.setItem(`todos_${pid}`, JSON.stringify(data))
   const readPersonal = () => { try { return JSON.parse(localStorage.getItem('todos_personal') || '{}') } catch { return {} } }
   const savePersonal = (data) => localStorage.setItem('todos_personal', JSON.stringify(data))
 
@@ -62,14 +60,7 @@ export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = 
     projects.forEach(p => { r[p.id] = readProj(p.id) })
     return r
   }
-  const initMerged = () => {
-    const r = {}
-    projects.forEach(p => { r[p.id] = readMerge(p.id) })
-    return r
-  }
-
   const [tasksByProject, setTasksByProject] = useState(initTasks)
-  const [mergedByProject, setMergedByProject] = useState(initMerged)
   const [addingDay,  setAddingDay]  = useState(null)
   const [newText,    setNewText]    = useState('')
   const [editingId,  setEditingId]  = useState(null)
@@ -79,52 +70,17 @@ export function GlobalTodoTab({ projects, meetings, activeProjectId, fullPage = 
   /* Reload when projects list changes */
   useEffect(() => {
     setTasksByProject(initTasks())
-    setMergedByProject(initMerged())
   }, [projects.length]) // eslint-disable-line
 
   /* Focus new-task input */
   useEffect(() => { if (addingDay && inputRef.current) inputRef.current.focus() }, [addingDay])
 
-  /* ── Auto-merge AI action items ──────────────────────────────────────── */
+  /* ── Reload todos when localStorage changes (from MeetingDetail mine toggles) ── */
   useEffect(() => {
-    let changed = false
-    const nextTasks  = { ...tasksByProject }
-    const nextMerged = { ...mergedByProject }
-
-    meetings.forEach(m => {
-      if (!m.projectId || !m.summary?.actionItems?.length || m.summary?._generating) return
-      const merged = nextMerged[m.projectId] || []
-      if (merged.includes(m.id)) return
-
-      const projTasks = { ...(nextTasks[m.projectId] || {}) }
-      const dk        = m.dateKey
-      const existing  = projTasks[dk] || []
-      const existIds  = new Set(existing.map(t => t.id))
-      const aiTasks   = m.summary.actionItems
-        .map(item => ({
-          id:     `ai_${m.id}_${item.id ?? Math.random()}`,
-          text:   item.task,
-          done:   false,
-          source: 'ai',
-          due:    item.due || '',
-        }))
-        .filter(t => !existIds.has(t.id))
-
-      if (aiTasks.length) {
-        projTasks[dk] = [...existing, ...aiTasks]
-        nextTasks[m.projectId] = projTasks
-        saveProj(m.projectId, projTasks)
-        changed = true
-      }
-      nextMerged[m.projectId] = [...merged, m.id]
-      saveMerge(m.projectId, nextMerged[m.projectId])
-    })
-
-    if (changed) {
-      setTasksByProject(nextTasks)
-      setMergedByProject(nextMerged)
-    }
-  }, [meetings]) // eslint-disable-line
+    const onStorage = () => setTasksByProject(initTasks())
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [projects.length]) // eslint-disable-line
 
   /* ── Flatten for day-wise view ───────────────────────────────────────── */
   const byDay = (() => {
@@ -792,13 +748,8 @@ export default function Sidebar({
       {/* ── Nav + Projects (fills remaining height, profile is pinned) ────── */}
       <div className="flex flex-col flex-1 overflow-hidden">
 
-        {/* Top nav: To-Do + Summary */}
+        {/* Top nav: Daily Summary only */}
         <nav className="flex flex-col gap-0.5 px-3 pt-3 pb-1 flex-shrink-0">
-          {navBtn('todos',
-            <ListTodo size={13} strokeWidth={activeSidebarTab === 'todos' ? 2.5 : 2} className="flex-shrink-0" />,
-            'To-Do',
-            () => onNavigateToTodos?.()
-          )}
           {navBtn('daily',
             <BookOpen size={13} strokeWidth={activeSidebarTab === 'daily' ? 2.5 : 2} className="flex-shrink-0" />,
             'Daily Work Summary',

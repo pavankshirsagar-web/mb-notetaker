@@ -111,84 +111,80 @@ const EMPTY_SUMMARY = {
 async function generateAISummary(lines) {
   if (!lines?.length) return EMPTY_SUMMARY
 
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-  if (!apiKey || apiKey === 'your_anthropic_api_key_here') return EMPTY_SUMMARY
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY
+  if (!apiKey || apiKey === 'your_groq_api_key_here') return EMPTY_SUMMARY
 
-  const transcript = lines.map(l => `${l.speaker}: ${l.text}`).join('\n')
+  // Cap at 200 lines to stay within token limits
+  const transcript = lines.slice(0, 200).map(l => `${l.speaker}: ${l.text}`).join('\n')
 
-  const prompt = `You are a professional meeting notes writer. Analyze the transcript below and produce a clean, structured summary.
+  const prompt = `You are a professional meeting notes writer. Analyze this transcript and produce a clean, executive-quality structured summary.
 
-STRICT RULES — follow exactly:
-1. NEVER copy or paraphrase sentences from the transcript. Fully synthesize.
-2. NEVER use first-person ("I", "we", "my"). Always use third-person professional tone.
-3. NEVER include filler words, spoken language patterns, or conversational phrases.
-4. Each bullet point must be ONE crisp sentence — max 20 words — clear and action-oriented.
-5. Topics should be themes/subjects discussed (e.g. "UI redesign scope", "API integration timeline") — not sentences.
-6. Key insights must be conclusions or important takeaways, stated as facts.
-7. Decisions must be concrete outcomes agreed upon, not vague statements.
-8. Action items must have a clear owner and due date.
-9. Write like a senior product manager summarizing for an executive — professional, dense, precise.
+RULES:
+1. NEVER copy sentences from the transcript — synthesize and compress.
+2. Third-person professional tone. No filler words or conversational phrases.
+3. Each bullet: ONE crisp sentence, max 20 words.
+4. Topics = themes/subjects (e.g. "API integration timeline") — not full sentences.
+5. Key insights = important conclusions stated as facts.
+6. Decisions = concrete outcomes agreed upon.
+7. Action items = clear tasks; owner only if explicitly named in transcript.
 
 Meeting Transcript:
 ---
 ${transcript}
 ---
 
-Return ONLY valid JSON, no markdown, no extra text:
+Return ONLY valid JSON (no markdown, no extra text):
 {
-  "objective": "One crisp sentence: what was the purpose and outcome of this meeting",
-  "topicsDiscussed": [
-    "Topic 1 as a concise synthesized point (max 15 words)",
-    "Topic 2 as a concise synthesized point"
-  ],
-  "keyInsights": [
-    "Most important insight or conclusion stated as a fact (max 15 words)",
-    "Second insight"
-  ],
-  "decisionsMade": [
-    "Concrete decision made, stated clearly (max 15 words)"
-  ],
+  "objective": "One sentence: purpose and outcome of this meeting",
+  "topicsDiscussed": ["Synthesized topic (max 12 words)", "..."],
+  "keyInsights": ["Key conclusion as a fact (max 15 words)", "..."],
+  "decisionsMade": ["Concrete decision (max 15 words)", "..."],
   "actionItems": [
-    { "id": 1, "task": "Specific action in imperative form (max 10 words)", "owner": "Person or team name", "due": "Date or TBD" }
+    { "id": 1, "task": "Action in imperative form (max 10 words)", "owner": "", "due": "" }
   ]
 }
 
-Rules for empty sections:
-- If no clear decisions: decisionsMade: ["No formal decisions were recorded."]
-- If no action items: actionItems: []
-- If objective unclear: objective: "Collaborative session to align on project progress and next steps."`
+Empty sections: use [] for arrays. If objective unclear use: "Team sync to align on project progress and decisions."`
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: 1024,
-        system: 'You are a professional meeting notes writer. You produce structured, concise, executive-quality meeting summaries. You never copy from transcripts. You synthesize and compress information into clear professional language.',
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
+    const res = await fetch(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model:       'llama-3.3-70b-versatile',
+          messages:    [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+          max_tokens:  2048,
+        }),
+      }
+    )
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
-    const text = data.content?.[0]?.text?.trim() ?? ''
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}))
+      console.error('[AI Summary] Groq error:', errBody)
+      throw new Error(`HTTP ${res.status}: ${errBody?.error?.message ?? 'unknown'}`)
+    }
+
+    const data    = await res.json()
+    const text    = data.choices?.[0]?.message?.content?.trim() ?? ''
     const jsonStr = text.match(/\{[\s\S]*\}/)?.[0]
-    if (!jsonStr) throw new Error('No JSON in response')
-    const parsed = JSON.parse(jsonStr)
+    if (!jsonStr) throw new Error('No JSON in Groq response')
+    const parsed  = JSON.parse(jsonStr)
 
     return {
       objective:       parsed.objective       || '',
       topicsDiscussed: parsed.topicsDiscussed || [],
       keyInsights:     parsed.keyInsights     || [],
       decisionsMade:   parsed.decisionsMade   || [],
-      actionItems:     (parsed.actionItems    || []).map((a, i) => ({ ...a, id: a.id ?? i + 1 })),
-      _generating:     false,
+      actionItems:     (parsed.actionItems    || []).map((a, i) => ({
+        ...a, id: a.id ?? i + 1, owner: a.owner || '', due: a.due || '',
+      })),
+      _generating: false,
     }
   } catch (err) {
     console.error('[AI Summary]', err)
@@ -1103,7 +1099,6 @@ export default function App() {
     if (isRecordingRef.current && !pipWindowRef.current) openPiP()
   }
   const navToDashboard = () => setPage('dashboard')
-  const navToTodos     = () => setPage('todos')
   const navToDaily     = () => setPage('daily')
 
   /* ── Workspace page navigation ── */
@@ -1156,7 +1151,9 @@ export default function App() {
     navToMeeting(meeting.id)          // land on this meeting's AI summary + transcript page
     // Generate AI summary in background, then update meeting
     generateAISummary(lines).then(aiSummary => {
-      const updated = { ...meeting, summary: aiSummary }
+      const hasContent = aiSummary.objective || aiSummary.topicsDiscussed?.length || aiSummary.actionItems?.length
+      const finalSummary = hasContent ? aiSummary : { ...EMPTY_SUMMARY, _generating: false, _failed: true }
+      const updated = { ...meeting, summary: finalSummary }
       setMeetings(prev => prev.map(m => m.id === meeting.id ? updated : m))
       fsSaveMeeting(currentUser?.uid, updated)
     })
@@ -1282,6 +1279,26 @@ export default function App() {
   const handleUpdateMeeting = (updated) => {
     setMeetings(prev => prev.map(m => m.id === updated.id ? updated : m))
     fsSaveMeeting(currentUser?.uid, updated)   // persist edits (title, summary, etc.)
+  }
+
+  /* Re-generate AI summary for an existing meeting that has a transcript */
+  const handleRegenerateSummary = (meetingId) => {
+    const meeting = meetings.find(m => m.id === meetingId)
+    if (!meeting?.transcript?.length) return
+    // Mark as generating
+    const generating = { ...meeting, summary: { ...EMPTY_SUMMARY, _generating: true } }
+    setMeetings(prev => prev.map(m => m.id === meetingId ? generating : m))
+    fsSaveMeeting(currentUser?.uid, generating)
+    // Call AI
+    generateAISummary(meeting.transcript).then(aiSummary => {
+      // If API key missing / call failed, aiSummary === EMPTY_SUMMARY (_generating: false)
+      // Add a flag so MeetingDetail can show "try again" instead of blank state
+      const hasContent = aiSummary.objective || aiSummary.topicsDiscussed?.length || aiSummary.actionItems?.length
+      const finalSummary = hasContent ? aiSummary : { ...EMPTY_SUMMARY, _generating: false, _failed: true }
+      const updated = { ...meeting, summary: finalSummary }
+      setMeetings(prev => prev.map(m => m.id === meetingId ? updated : m))
+      fsSaveMeeting(currentUser?.uid, updated)
+    })
   }
 
   const handleDeleteMeeting = (id) => {
@@ -1483,7 +1500,7 @@ export default function App() {
           onRecoverySaveAndStart={handleSaveAndStartNew}
           onNavigateToProject={navToProject}
           onNavigateToDashboard={navToDashboard}
-          onNavigateToTodos={navToTodos}
+
           onNavigateToDaily={navToDaily}
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
@@ -1494,28 +1511,6 @@ export default function App() {
         />
       )}
 
-      {/* ── To-Do page ── */}
-      {page === 'todos' && (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
-          <Sidebar
-            projects={projects}
-            meetings={meetings}
-            activeSidebarTab="todos"
-            onNavigateToProject={navToProject}
-            onNavigateToDashboard={navToDashboard}
-            onNavigateToTodos={navToTodos}
-            onNavigateToDaily={navToDaily}
-            onCreateProject={handleCreateProject}
-            onRenameProject={handleRenameProject}
-            onDeleteProject={handleDeleteProject}
-            currentUser={currentUser}
-            onSignOut={signOutUser}
-          />
-          <main className="flex-1 overflow-hidden flex flex-col">
-            <GlobalTodoTab projects={projects} meetings={meetings} activeProjectId={null} fullPage />
-          </main>
-        </div>
-      )}
 
       {/* ── Daily Summary page ── */}
       {page === 'daily' && (
@@ -1526,7 +1521,7 @@ export default function App() {
             activeSidebarTab="daily"
             onNavigateToProject={navToProject}
             onNavigateToDashboard={navToDashboard}
-            onNavigateToTodos={navToTodos}
+
             onNavigateToDaily={navToDaily}
             onCreateProject={handleCreateProject}
             onRenameProject={handleRenameProject}
@@ -1548,7 +1543,7 @@ export default function App() {
           onNavigateToMeeting={navToMeeting}
           onNavigateToProject={navToProject}
           onNavigateToDashboard={navToDashboard}
-          onNavigateToTodos={navToTodos}
+
           onNavigateToDaily={navToDaily}
           onStartRecording={openRecordingSetupFromProject}
           onCreateProject={handleCreateProject}
@@ -1579,10 +1574,11 @@ export default function App() {
           project={activeProject}
           onBack={() => setPage('project')}
           onUpdate={handleUpdateMeeting}
+          onRegenerateSummary={handleRegenerateSummary}
           projects={projects}
           onNavigateToProject={navToProject}
           onNavigateToDashboard={navToDashboard}
-          onNavigateToTodos={navToTodos}
+
           onNavigateToDaily={navToDaily}
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}
@@ -1603,7 +1599,7 @@ export default function App() {
           onUpdatePage={handleUpdateWorkspacePage}
           onNavigateToProject={navToProject}
           onNavigateToDashboard={navToDashboard}
-          onNavigateToTodos={navToTodos}
+
           onNavigateToDaily={navToDaily}
           onCreateProject={handleCreateProject}
           onRenameProject={handleRenameProject}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Folder, Clock, Globe, Download,
-  Pencil, Check, Plus, Trash2, ChevronRight, Users, X, Copy, CheckCheck,
+  Pencil, Check, ChevronRight, Users, X, Copy, CheckCheck,
   Target, Hash, Lightbulb, CheckCircle2, ListChecks, Calendar,
+  Square, SquareCheck, Sparkles,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 
@@ -24,76 +25,27 @@ function resolveInitials(speakerId, overrideName) {
 }
 
 /* ─────────────────────────────────────────────
-   OBJECTIVE EDITOR (inline editable paragraph)
+   OBJECTIVE DISPLAY (read-only)
 ───────────────────────────────────────────── */
-function ObjectiveEditor({ value, onSave }) {
-  const [editing, setEditing] = useState(false)
-  const [val,     setVal]     = useState(value)
-
-  useEffect(() => { setVal(value) }, [value])
-
-  const save = () => { setEditing(false); if (val.trim() !== value) onSave(val.trim()) }
-
+function ObjectiveDisplay({ value }) {
   return (
-    <div className="rounded-xl border px-4 py-3.5 transition-all cursor-text"
-      style={{ borderColor: editing ? '#d1d5db' : '#f3f4f6', backgroundColor: '#fafafa' }}
-      onClick={() => !editing && setEditing(true)}>
-      {editing ? (
-        <textarea
-          autoFocus
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          onBlur={save}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() } }}
-          rows={2}
-          className="w-full text-sm text-gray-700 leading-relaxed outline-none bg-transparent resize-none"
-        />
-      ) : (
-        value
-          ? <p className="text-sm leading-relaxed text-gray-700">{value}</p>
-          : <p className="text-sm text-gray-300 italic">No objective recorded.</p>
-      )}
+    <div className="rounded-xl border px-4 py-3.5" style={{ borderColor: '#f3f4f6', backgroundColor: '#fafafa' }}>
+      {value
+        ? <p className="text-sm leading-relaxed text-gray-700">{value}</p>
+        : <p className="text-sm text-gray-300 italic">No objective recorded.</p>
+      }
     </div>
   )
 }
 
 /* ─────────────────────────────────────────────
-   EDITABLE BULLET ITEM
+   BULLET ITEM (read-only)
 ───────────────────────────────────────────── */
-function EditableBullet({ text, onChange, onDelete }) {
-  const [editing, setEditing] = useState(false)
-  const [val,     setVal]     = useState(text)
-
-  const save = () => { setEditing(false); onChange(val.trim() || text) }
-
+function ReadOnlyBullet({ text }) {
   return (
-    <div className="group flex items-start gap-2.5 py-1.5 px-1">
+    <div className="flex items-start gap-2.5 py-1.5 px-1">
       <span className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0 bg-gray-300" />
-      {editing ? (
-        <div className="flex-1 flex items-center gap-2">
-          <input autoFocus value={val}
-            onChange={(e) => setVal(e.target.value)}
-            onBlur={save}
-            onKeyDown={(e) => { if (e.key === 'Enter') save() }}
-            className="flex-1 text-sm text-gray-700 border-b border-purple-300 outline-none bg-transparent pb-0.5"
-          />
-          <button onClick={save} className="text-purple-500 hover:text-purple-700 flex-shrink-0 cursor-pointer">
-            <Check size={13} />
-          </button>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-start justify-between gap-2">
-          <p className="text-sm text-gray-700 leading-relaxed flex-1">{text}</p>
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
-            <button onClick={() => setEditing(true)} className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500 cursor-pointer transition-colors">
-              <Pencil size={11} />
-            </button>
-            <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 cursor-pointer transition-colors">
-              <Trash2 size={11} />
-            </button>
-          </div>
-        </div>
-      )}
+      <p className="text-sm text-gray-700 leading-relaxed flex-1">{text}</p>
     </div>
   )
 }
@@ -101,28 +53,19 @@ function EditableBullet({ text, onChange, onDelete }) {
 /* ─────────────────────────────────────────────
    SUMMARY SECTION WRAPPER
 ───────────────────────────────────────────── */
-function SummarySection({ title, icon, children, onAddItem }) {
+function SummarySection({ title, icon, children }) {
   return (
     <div className="mb-7">
       {/* Section header */}
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2">
-          {icon && (
-            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
-              {icon}
-            </div>
-          )}
-          <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
-            {title}
-          </span>
-        </div>
-        {onAddItem && (
-          <button onClick={onAddItem}
-            className="flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-purple-600 transition-colors cursor-pointer px-2 py-0.5 rounded-lg hover:bg-purple-50 border border-transparent hover:border-purple-100">
-            <Plus size={10} strokeWidth={2.5} />
-            Add
-          </button>
+      <div className="flex items-center gap-2 mb-2.5">
+        {icon && (
+          <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-100">
+            {icon}
+          </div>
         )}
+        <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          {title}
+        </span>
       </div>
       {/* Items */}
       <div className="flex flex-col">{children}</div>
@@ -131,36 +74,31 @@ function SummarySection({ title, icon, children, onAddItem }) {
 }
 
 /* ─────────────────────────────────────────────
-   ACTION ITEM ROW
+   ACTION ITEM ROW — checkbox only (read-only)
 ───────────────────────────────────────────── */
-function ActionItemRow({ item, onChange, onDelete, readOnly = false }) {
-  const [editing, setEditing] = useState(false)
-  const [vals,    setVals]    = useState({ task: item.task, owner: item.owner, due: item.due })
-
-  const save = () => { setEditing(false); onChange?.({ ...item, ...vals }) }
-
+function ActionItemRow({ item, onToggleMine, isLast }) {
   return (
-    <div className="flex items-start gap-2.5 py-1.5 px-1">
-      <span className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0 bg-gray-300" />
-      <div className="flex-1">
-        <p className="text-sm text-gray-700 leading-relaxed">{item.task}</p>
-        {((item.owner && item.owner !== 'Unassigned') || (item.due && item.due !== 'TBD')) && (
-          <div className="flex items-center gap-2 flex-wrap mt-1">
-            {item.owner && item.owner !== 'Unassigned' && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
-                <Users size={9} strokeWidth={2} />
-                {item.owner}
-              </span>
-            )}
-            {item.due && item.due !== 'TBD' && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
-                <Calendar size={9} strokeWidth={2} />
-                {item.due}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+    <div className={`flex items-center gap-3 py-2.5 ${!isLast ? 'border-b border-gray-100' : ''}`}>
+
+      {/* Checkbox */}
+      <button
+        onClick={() => onToggleMine(!item.mine)}
+        className="flex-shrink-0 cursor-pointer transition-colors"
+        title={item.mine ? 'Unmark as mine' : 'Mark as mine'}
+      >
+        {item.mine
+          ? <SquareCheck size={15} strokeWidth={2} style={{ color: '#7133AE' }} />
+          : <Square     size={15} strokeWidth={1.5} className="text-gray-300 hover:text-gray-400" />
+        }
+      </button>
+
+      {/* Task text */}
+      <span
+        className="flex-1 text-sm leading-snug select-none"
+        style={{ color: item.mine ? '#374151' : '#6b7280' }}
+      >
+        {item.task}
+      </span>
     </div>
   )
 }
@@ -173,6 +111,7 @@ export default function MeetingDetail({
   project,
   onBack,
   onUpdate,
+  onRegenerateSummary,
   projects = [],
   onNavigateToProject,
   onNavigateToDashboard,
@@ -197,12 +136,10 @@ export default function MeetingDetail({
   const [transcriptCopied, setTranscriptCopied] = useState(false)
   const [summaryCopied,    setSummaryCopied]    = useState(false)
 
-  // Sync summary from prop when background AI generation completes
+  // Sync summary from prop whenever it changes (covers _generating true→false and content updates)
   useEffect(() => {
-    if (meeting?.summary && !meeting.summary._generating) {
-      setSummary(meeting.summary)
-    }
-  }, [meeting?.summary?._generating]) // eslint-disable-line
+    if (meeting?.summary) setSummary(meeting.summary)
+  }, [meeting?.summary?._generating, meeting?.summary?.objective]) // eslint-disable-line
 
   if (!meeting || !project) return null
 
@@ -303,7 +240,37 @@ export default function MeetingDetail({
     setSummary(updated); onUpdate({ ...meeting, summary: updated })
   }
 
+  /* ── Action item → localStorage todo sync ── */
+  const syncToTodos = (actionItems) => {
+    if (!meeting.projectId || !meeting.dateKey) return
+    const storageKey = `todos_${meeting.projectId}`
+    let todos = {}
+    try { todos = JSON.parse(localStorage.getItem(storageKey) || '{}') } catch { todos = {} }
+    const dk = meeting.dateKey
+    // Keep non-meeting-action todos intact; rebuild mine items
+    const existing = (todos[dk] || []).filter(t => !t.id?.startsWith(`mact_${meeting.id}_`))
+    const mineItems = actionItems
+      .filter(item => item.mine)
+      .map(item => ({
+        id:        `mact_${meeting.id}_${item.id}`,
+        text:      item.task,
+        done:      false,
+        source:    'ai',
+        meetingId: meeting.id,
+      }))
+    todos[dk] = [...existing, ...mineItems]
+    localStorage.setItem(storageKey, JSON.stringify(todos))
+  }
+
   /* ── Action item helpers ── */
+  const [todosSaved, setTodosSaved] = useState(false)
+
+  const toggleMineAction = (idx, mine) => {
+    setTodosSaved(false)
+    const next = summary.actionItems.map((a, i) => i === idx ? { ...a, mine } : a)
+    const updated = { ...summary, actionItems: next }
+    setSummary(updated); onUpdate({ ...meeting, summary: updated })
+  }
   const updateAction = (idx, val) => {
     const next = summary.actionItems.map((a, i) => i === idx ? val : a)
     const updated = { ...summary, actionItems: next }
@@ -313,12 +280,20 @@ export default function MeetingDetail({
     const next = summary.actionItems.filter((_, i) => i !== idx)
     const updated = { ...summary, actionItems: next }
     setSummary(updated); onUpdate({ ...meeting, summary: updated })
+    syncToTodos(next)
   }
   const addAction = () => {
-    const next = [...summary.actionItems, { id: Date.now(), task: 'New action item', owner: 'Unassigned', due: 'TBD' }]
+    setTodosSaved(false)
+    const newItem = { id: Date.now(), task: 'New action item', owner: '', due: '', mine: true }
+    const next = [...(summary.actionItems || []), newItem]
     const updated = { ...summary, actionItems: next }
     setSummary(updated); onUpdate({ ...meeting, summary: updated })
   }
+  const handleAddToTodos = () => {
+    syncToTodos(summary.actionItems || [])
+    setTodosSaved(true)
+  }
+  const checkedCount = (summary.actionItems || []).filter(a => a.mine).length
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -567,6 +542,38 @@ export default function MeetingDetail({
                 </div>
               )}
 
+              {/* ── Empty summary — no AI run yet OR failed, show generate CTA ── */}
+              {!summary._generating && !summary.objective && !(summary.topicsDiscussed?.length) && !(summary.keyInsights?.length) && !(summary.decisionsMade?.length) && !(summary.actionItems?.length) && meeting?.transcript?.length > 0 && (
+                <div className="flex flex-col items-center justify-center py-14 gap-4">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: '#7133AE12' }}>
+                    <Sparkles size={22} style={{ color: '#7133AE' }} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-700 mb-1">
+                      {summary._failed ? 'Generation failed' : 'AI Summary not generated yet'}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {summary._failed
+                        ? 'Check your Groq API key in .env and restart the dev server.'
+                        : 'Your transcript is ready. Generate a structured summary now.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSummary(s => ({ ...s, _generating: true }))
+                      onRegenerateSummary?.(meeting.id)
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all cursor-pointer"
+                    style={{ backgroundColor: '#7133AE' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}
+                  >
+                    <Sparkles size={14} strokeWidth={2} />
+                    {summary._failed ? 'Retry Generation' : 'Generate AI Summary'}
+                  </button>
+                </div>
+              )}
+
               {/* ── Summary content ── */}
               {!summary._generating && (
                 <>
@@ -580,48 +587,79 @@ export default function MeetingDetail({
                         Objective
                       </span>
                     </div>
-                    <ObjectiveEditor value={summary.objective} onSave={updateObjective} />
+                    <ObjectiveDisplay value={summary.objective} />
                   </div>
 
                   {/* 2. Topics Discussed */}
                   <SummarySection title="Topics Discussed"
-                    icon={<Hash size={11} className="text-gray-400" />}
-                    onAddItem={() => addBullet('topicsDiscussed')}>
+                    icon={<Hash size={11} className="text-gray-400" />}>
                     {(summary.topicsDiscussed || []).map((t, i) => (
-                      <EditableBullet key={i} text={t}
-                        onChange={(v) => updateBullet('topicsDiscussed', i, v)}
-                        onDelete={() => deleteBullet('topicsDiscussed', i)} />
+                      <ReadOnlyBullet key={i} text={t} />
                     ))}
                   </SummarySection>
 
                   {/* 3. Key Insights */}
                   <SummarySection title="Key Insights"
-                    icon={<Lightbulb size={11} className="text-gray-400" />}
-                    onAddItem={() => addBullet('keyInsights')}>
+                    icon={<Lightbulb size={11} className="text-gray-400" />}>
                     {(summary.keyInsights || []).map((h, i) => (
-                      <EditableBullet key={i} text={h}
-                        onChange={(v) => updateBullet('keyInsights', i, v)}
-                        onDelete={() => deleteBullet('keyInsights', i)} />
+                      <ReadOnlyBullet key={i} text={h} />
                     ))}
                   </SummarySection>
 
                   {/* 4. Decisions Made */}
                   <SummarySection title="Decisions Made"
-                    icon={<CheckCircle2 size={11} className="text-gray-400" />}
-                    onAddItem={() => addBullet('decisionsMade')}>
+                    icon={<CheckCircle2 size={11} className="text-gray-400" />}>
                     {(summary.decisionsMade || []).map((d, i) => (
-                      <EditableBullet key={i} text={d}
-                        onChange={(v) => updateBullet('decisionsMade', i, v)}
-                        onDelete={() => deleteBullet('decisionsMade', i)} />
+                      <ReadOnlyBullet key={i} text={d} />
                     ))}
                   </SummarySection>
 
-                  {/* 5. Action Items — read only */}
+                  {/* 5. Action Items */}
                   <SummarySection title="Action Items"
                     icon={<ListChecks size={11} className="text-gray-400" />}>
-                    {(summary.actionItems || []).map((item, i) => (
-                      <ActionItemRow key={item.id ?? i} item={item} readOnly />
-                    ))}
+
+                    {(summary.actionItems || []).length === 0 ? (
+                      <p className="text-xs text-gray-300 py-1">No action items recorded.</p>
+                    ) : (
+                      <div className="rounded-xl border border-gray-100 overflow-hidden px-3">
+                        {(summary.actionItems || []).map((item, i, arr) => (
+                          <ActionItemRow
+                            key={item.id ?? i}
+                            item={item}
+                            isLast={i === arr.length - 1}
+                            onToggleMine={(mine) => toggleMineAction(i, mine)}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add to To-Do List CTA */}
+                    {(summary.actionItems || []).length > 0 && (
+                      <div className="flex items-center gap-3 mt-3">
+                        <button
+                          onClick={handleAddToTodos}
+                          disabled={checkedCount === 0}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer"
+                          style={{
+                            borderColor:      checkedCount > 0 ? '#7133AE' : '#e5e7eb',
+                            color:            checkedCount > 0 ? '#7133AE' : '#d1d5db',
+                            backgroundColor:  checkedCount > 0 ? '#7133AE0A' : 'transparent',
+                            cursor:           checkedCount === 0 ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          <SquareCheck size={12} strokeWidth={2.5} />
+                          {checkedCount > 0
+                            ? `Add ${checkedCount} item${checkedCount > 1 ? 's' : ''} to To-Do list`
+                            : 'Select items to add'}
+                        </button>
+                        {todosSaved && (
+                          <span className="flex items-center gap-1 text-xs text-green-600">
+                            <Check size={11} strokeWidth={2.5} />
+                            Saved to To-Do
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </SummarySection>
                 </>
               )}
