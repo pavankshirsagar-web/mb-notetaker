@@ -272,12 +272,11 @@ function ProjectModal({ projects, onStart, onClose }) {
           <button
             onClick={() => selected && onStart(selected)}
             disabled={!selected}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ backgroundColor: '#7133AE' }}
             onMouseEnter={(e) => { if (selected) e.currentTarget.style.backgroundColor = '#5f2a94' }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}
           >
-            <Mic size={15} />
             Start Recording
           </button>
         </div>

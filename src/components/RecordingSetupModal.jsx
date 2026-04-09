@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Mic, Headphones, Laptop, Speaker, MonitorSpeaker, X, Radio, CheckCircle2, Users, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Mic, Headphones, Laptop, Speaker, MonitorSpeaker, X, Radio, CheckCircle2, Users, RefreshCw, Info } from 'lucide-react'
 
 /* ── Detect device type from browser label string ──────────────────────────
    NOTE: 'Realtek' / 'HD Audio' / 'High Definition Audio' are DRIVER names,
@@ -91,10 +91,20 @@ export default function RecordingSetupModal({
   onStopSystemAudio,
   onClearSysAudioError,
 }) {
-  const [devices,    setDevices]    = useState([])
-  const [selectedId, setSelectedId] = useState('default')
-  const [loading,    setLoading]    = useState(true)
-  const [permErr,    setPermErr]    = useState(false)
+  const [devices,         setDevices]         = useState([])
+  const [selectedId,      setSelectedId]      = useState('default')
+  const [loading,         setLoading]         = useState(true)
+  const [permErr,         setPermErr]         = useState(false)
+  const [showNoSysAudio,  setShowNoSysAudio]  = useState(false)
+  const pendingStartRef = useRef(false)
+
+  /* When system audio turns ON and recording was pending, start immediately */
+  useEffect(() => {
+    if (systemAudioOn && pendingStartRef.current) {
+      pendingStartRef.current = false
+      onStart({ project, deviceId: selectedId })
+    }
+  }, [systemAudioOn]) // eslint-disable-line
 
   /* Enumerate mic devices — request permission first so labels are populated */
   const loadDevices = (isRefresh = false) => {
@@ -161,6 +171,109 @@ export default function RecordingSetupModal({
         </div>
 
         <div className="px-6 pt-5 pb-4 space-y-4">
+
+          {/* ── System Audio section ── */}
+          <div>
+            {/* Section heading */}
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <MonitorSpeaker size={12} className="text-gray-700" />
+              <span className="text-xs font-semibold text-gray-700">System Audio</span>
+            </div>
+
+            {/* Toggle card */}
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: '#e5e7eb' }}>
+            {/* Row */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: systemAudioOn ? '#05966914' : '#f3f4f6' }}
+                >
+                  <MonitorSpeaker size={15} style={{ color: systemAudioOn ? '#059669' : '#9ca3af' }} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-800 leading-tight">Enable System Audio</p>
+                  <p className="text-xs leading-tight mt-0.5" style={{ color: systemAudioOn ? '#059669' : '#9ca3af' }}>
+                    {sysAudioLoading  ? 'Connecting to meeting audio…'
+                     : systemAudioOn  ? 'Capturing Google Meet / Zoom audio'
+                     : 'Captures audio from your screen'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Toggle switch */}
+              <button
+                type="button"
+                onClick={systemAudioOn ? onStopSystemAudio : onEnableSystemAudio}
+                disabled={sysAudioLoading}
+                className="relative flex-shrink-0 transition-opacity"
+                style={{ opacity: sysAudioLoading ? 0.6 : 1, cursor: sysAudioLoading ? 'wait' : 'pointer' }}
+                aria-label="Toggle system audio"
+              >
+                {sysAudioLoading ? (
+                  <svg className="animate-spin w-9 h-5" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                  </svg>
+                ) : (
+                  <div
+                    className="w-10 h-6 rounded-full transition-colors duration-200"
+                    style={{ backgroundColor: systemAudioOn ? '#059669' : '#d1d5db' }}
+                  >
+                    <div
+                      className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all duration-200"
+                      style={{ left: systemAudioOn ? '22px' : '4px' }}
+                    />
+                  </div>
+                )}
+              </button>
+            </div>
+
+            {/* Status bar — ON */}
+            {systemAudioOn && (
+              <div
+                className="px-4 py-2 flex items-center gap-1.5 text-xs font-medium"
+                style={{ backgroundColor: '#05966910', color: '#059669', borderTop: '1px solid #05966920' }}
+              >
+                <Users size={11} />
+                Multi-speaker detection active — other participants will be labelled separately
+              </div>
+            )}
+
+            {/* Error bar */}
+            {sysAudioError && (
+              <div
+                className="px-4 py-2.5 text-xs"
+                style={{ backgroundColor: '#fef2f2', borderTop: '1px solid #fecaca' }}
+              >
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <p className="font-semibold text-red-600">⚠️ Could not capture audio</p>
+                  <button onClick={onClearSysAudioError} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0 text-base leading-none">✕</button>
+                </div>
+                <p className="text-red-500 mb-1.5 leading-relaxed">{sysAudioError}</p>
+                <div className="text-gray-500 space-y-1">
+                  <p className="font-medium text-gray-600">In the sharing dialog:</p>
+                  <p>1. Select <strong>Entire Screen</strong> (first tab)</p>
+                  <p>2. Make sure <strong>"Also share system audio" ✅</strong> is checked</p>
+                  <p>3. Click <strong>Share</strong></p>
+                  <p className="text-gray-400 pt-0.5">
+                    <em>Using Zoom desktop app?</em> Open Zoom in your browser instead, or use <strong>Window</strong> tab → select Zoom window.
+                  </p>
+                </div>
+              </div>
+            )}
+            </div>{/* end toggle card */}
+
+            {/* Blue info banner */}
+            {!systemAudioOn && (
+              <div className="flex items-start gap-2 mt-2 px-3 py-2.5 rounded-xl"
+                style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                <Info size={13} className="flex-shrink-0 mt-0.5" style={{ color: '#2563eb' }} />
+                <p className="text-xs leading-relaxed" style={{ color: '#1d4ed8' }}>
+                  Turn on system audio to transcribe other speakers in Google Meet, Zoom, or any meeting app.
+                </p>
+              </div>
+            )}
+          </div>{/* end System Audio section */}
 
           {/* ── Microphone selector ── */}
           <div>
@@ -246,89 +359,6 @@ export default function RecordingSetupModal({
             )}
           </div>
 
-          {/* ── System Audio toggle ── */}
-          <div className="rounded-xl border overflow-hidden" style={{ borderColor: '#e5e7eb' }}>
-            {/* Row */}
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: systemAudioOn ? '#05966914' : '#f3f4f6' }}
-                >
-                  <MonitorSpeaker size={15} style={{ color: systemAudioOn ? '#059669' : '#9ca3af' }} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800 leading-tight">System Audio</p>
-                  <p className="text-xs leading-tight mt-0.5" style={{ color: systemAudioOn ? '#059669' : '#9ca3af' }}>
-                    {sysAudioLoading  ? 'Connecting to meeting audio…'
-                     : systemAudioOn  ? 'Capturing Google Meet / Zoom audio'
-                     : 'Enable to transcribe other speakers'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggle switch */}
-              <button
-                type="button"
-                onClick={systemAudioOn ? onStopSystemAudio : onEnableSystemAudio}
-                disabled={sysAudioLoading}
-                className="relative flex-shrink-0 transition-opacity"
-                style={{ opacity: sysAudioLoading ? 0.6 : 1, cursor: sysAudioLoading ? 'wait' : 'pointer' }}
-                aria-label="Toggle system audio"
-              >
-                {sysAudioLoading ? (
-                  /* spinner */
-                  <svg className="animate-spin w-9 h-5" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                  </svg>
-                ) : (
-                  <div
-                    className="w-10 h-6 rounded-full transition-colors duration-200"
-                    style={{ backgroundColor: systemAudioOn ? '#059669' : '#d1d5db' }}
-                  >
-                    <div
-                      className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all duration-200"
-                      style={{ left: systemAudioOn ? '22px' : '4px' }}
-                    />
-                  </div>
-                )}
-              </button>
-            </div>
-
-            {/* Status bar — ON */}
-            {systemAudioOn && (
-              <div
-                className="px-4 py-2 flex items-center gap-1.5 text-xs font-medium"
-                style={{ backgroundColor: '#05966910', color: '#059669', borderTop: '1px solid #05966920' }}
-              >
-                <Users size={11} />
-                Multi-speaker detection active — other participants will be labelled separately
-              </div>
-            )}
-
-            {/* Error bar */}
-            {sysAudioError && (
-              <div
-                className="px-4 py-2.5 text-xs"
-                style={{ backgroundColor: '#fef2f2', borderTop: '1px solid #fecaca' }}
-              >
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <p className="font-semibold text-red-600">⚠️ Could not capture audio</p>
-                  <button onClick={onClearSysAudioError} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0 text-base leading-none">✕</button>
-                </div>
-                <p className="text-red-500 mb-1.5 leading-relaxed">{sysAudioError}</p>
-                <div className="text-gray-500 space-y-1">
-                  <p className="font-medium text-gray-600">In the sharing dialog:</p>
-                  <p>1. Select <strong>Entire Screen</strong> (first tab)</p>
-                  <p>2. Make sure <strong>"Also share system audio" ✅</strong> is checked</p>
-                  <p>3. Click <strong>Share</strong></p>
-                  <p className="text-gray-400 pt-0.5">
-                    <em>Using Zoom desktop app?</em> Open Zoom in your browser instead, or use <strong>Window</strong> tab → select Zoom window.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* ── Footer ── */}
@@ -340,7 +370,9 @@ export default function RecordingSetupModal({
             Cancel
           </button>
           <button
-            onClick={() => onStart({ project, deviceId: selectedId })}
+            onClick={() => {
+              if (!systemAudioOn) { setShowNoSysAudio(true) } else { onStart({ project, deviceId: selectedId }) }
+            }}
             disabled={!canStart}
             className="flex-[2] py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all flex items-center justify-center gap-2"
             style={{
@@ -353,6 +385,52 @@ export default function RecordingSetupModal({
           </button>
         </div>
       </div>
+
+      {/* ── No System Audio warning modal ── */}
+      {showNoSysAudio && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
+                style={{ backgroundColor: '#eff6ff' }}>
+                <MonitorSpeaker size={16} style={{ color: '#2563eb' }} />
+              </div>
+              <h3 className="text-gray-900 font-semibold text-sm">System audio is off</h3>
+              <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                Without system audio, only your microphone will be transcribed. Other speakers in Google Meet, Zoom, or any meeting app will not be captured.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2 px-5 pb-5 pt-2">
+              <button
+                onClick={() => {
+                  setShowNoSysAudio(false)
+                  pendingStartRef.current = true
+                  onEnableSystemAudio()
+                }}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer flex items-center justify-center gap-2"
+                style={{ backgroundColor: '#2563eb' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1d4ed8' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#2563eb' }}
+              >
+                <MonitorSpeaker size={14} />
+                Turn on System Audio
+              </button>
+              <button
+                onClick={() => { setShowNoSysAudio(false); onStart({ project, deviceId: selectedId }) }}
+                className="w-full py-2 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Keep it off &amp; continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
