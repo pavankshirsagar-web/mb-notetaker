@@ -306,10 +306,15 @@ export default function App() {
         getDocs(collection(db, 'users', uid, 'workspacePages')),
       ])
 
-      const loadedProjects = projSnap.docs.map(d => d.data())
+      let loadedProjects = projSnap.docs.map(d => d.data())
       const loadedMeetings = meetSnap.docs.map(d => d.data())
 
-      // New users start with no projects — they create their own
+      // New users get a "Default Folder" project automatically
+      if (loadedProjects.length === 0) {
+        const defaultProject = { id: 'default-folder', name: 'Default Folder', color: '#7133AE', createdAt: new Date().toISOString() }
+        loadedProjects = [defaultProject]
+        if (db) setDoc(doc(db, 'users', uid, 'projects', 'default-folder'), defaultProject).catch(() => {})
+      }
       setProjects(loadedProjects)
 
       // Sort newest-first (meeting IDs are timestamp strings)
@@ -1194,6 +1199,8 @@ export default function App() {
 
   /* ── Open recording setup modal — replaces the old direct startRecording ── */
   const openRecordingSetup = (project) => {
+    // Auto-enable system audio (still within user-gesture context of the button click)
+    if (!systemAudioOn && !sysAudioLoading) enableMeetingAudio()
     setSetupProject(project)
   }
 
