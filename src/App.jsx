@@ -1199,8 +1199,6 @@ export default function App() {
 
   /* ── Open recording setup modal — replaces the old direct startRecording ── */
   const openRecordingSetup = (project) => {
-    // Auto-enable system audio (still within user-gesture context of the button click)
-    if (!systemAudioOn && !sysAudioLoading) enableMeetingAudio()
     setSetupProject(project)
   }
 
