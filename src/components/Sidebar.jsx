@@ -862,7 +862,7 @@ export default function Sidebar({
           </div>
           {onSignOut && (
             <button onClick={() => setShowLogoutConfirm(true)} title="Sign out"
-              className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer opacity-0 group-hover:opacity-100">
+              className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
@@ -884,36 +884,36 @@ export default function Sidebar({
           onClick={(e) => e.stopPropagation()}>
 
           {/* Header */}
-          <div className="flex items-start justify-between px-6 pt-6 pb-4">
+          <div className="flex items-start justify-between px-5 pt-5 pb-3">
             <div>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2.5"
                 style={{ backgroundColor: '#7133AE12' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7133AE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7133AE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
               </div>
-              <h3 className="text-gray-900 font-semibold text-base">Sign out?</h3>
-              <p className="text-sm text-gray-500 mt-1 leading-snug">
+              <h3 className="text-gray-900 font-semibold text-sm">Sign out?</h3>
+              <p className="text-xs text-gray-500 mt-1.5 leading-snug">
                 Your work is saved automatically. You can safely sign out without losing anything.
               </p>
             </div>
             <button onClick={() => setShowLogoutConfirm(false)}
               className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex-shrink-0 ml-2">
-              <X size={15} className="text-gray-400" />
+              <X size={13} className="text-gray-400" />
             </button>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2.5 px-6 pb-6">
+          <div className="flex gap-2 px-5 pb-5 pt-1">
             <button onClick={() => setShowLogoutConfirm(false)}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer">
+              className="flex-1 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer">
               Cancel
             </button>
             <button
               onClick={() => { setShowLogoutConfirm(false); onSignOut?.() }}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer"
+              className="flex-1 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer"
               style={{ backgroundColor: '#7133AE' }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5f2a94' }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#7133AE' }}>
